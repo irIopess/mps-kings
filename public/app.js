@@ -75,6 +75,7 @@
       case 'roblox_unavailable': return 'O Roblox não respondeu agora. Tente de novo em instantes.';
       case 'wrong_password': return 'Senha incorreta.';
       case 'staff_only': return 'Só a Staff pode fazer isso.';
+      case 'ticket_closed': return 'Este ticket está fechado. Só a Staff pode responder nele.';
       case 'invalid_theme': return 'Essa cor não existe.';
       case 'staff_disabled': return 'O acesso da Staff não está configurado neste servidor.';
       case 'full': return 'O site está lotado no momento. Tente mais tarde.';
@@ -426,6 +427,10 @@
     var pill = $('#th-pill'); pill.textContent = t.status === 'open' ? 'Aberto' : 'Fechado';
     pill.className = 'pill ' + t.status;
     $('#th-toggle').textContent = t.status === 'open' ? 'Fechar ticket' : 'Reabrir';
+    var locked = t.status === 'closed' && !S.me.isAdmin;
+    $('#th-toggle').hidden = locked;
+    $('#msg-input').disabled = locked; $('#msg-send').disabled = locked || !!S.sending;
+    $('#msg-input').placeholder = locked ? 'Ticket fechado. Só a Staff pode responder.' : (t.status === 'closed' ? 'Responder reabre o ticket' : 'Escreva uma mensagem');
     $('#closed-note').hidden = t.status !== 'closed';
   }
 

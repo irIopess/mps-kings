@@ -61,6 +61,16 @@ Usuários e tickets ficam num arquivo (`db.json`) dentro de `DATA_DIR`. Se o ser
 - `public/`: o site (`index.html`, `style.css`, `app.js`, `logo.png`, `hero.jpg`). Para trocar o fundo do Welcome back, substitua `public/hero.jpg`.
 - `test/smoke.js`: teste automático
 
+## Não perder os dados no Render grátis
+
+O plano grátis do Render **apaga o disco** a cada atualização e a cada reinício, e leva junto usuários, tickets e anúncios. Para isso não acontecer sem pagar disco, o site pode guardar uma cópia no **Upstash** (Redis grátis):
+
+1. Crie conta em upstash.com e um banco Redis (plano Free). Na página do banco, aba **REST API**, copie o `UPSTASH_REDIS_REST_URL` e o `UPSTASH_REDIS_REST_TOKEN`.
+2. No Render, em Environment, crie as duas variáveis com esses valores e salve.
+3. Pronto: o site carrega os dados do Upstash ao ligar e grava lá a cada mudança. Se o Upstash não responder ao ligar, o site não sobe (de propósito, para nunca salvar um banco vazio por cima).
+
+O Upstash grátis aceita cerca de 1 MB por gravação. Isso dá para milhares de mensagens, mas se o site crescer muito, o melhor é o disco pago do Render.
+
 ## Login com Discord (OAuth)
 
 1. No [Discord Developer Portal](https://discord.com/developers/applications), abra o seu app, vá em **OAuth2** e, em **Redirects**, adicione exatamente `SEU_BASE_URL/auth/discord/callback` (por exemplo `https://mpskings.onrender.com/auth/discord/callback`). O link `discord.gg/...` **não serve** como redirect: o Discord mandaria a pessoa para o convite e o código de login nunca chegaria no site.

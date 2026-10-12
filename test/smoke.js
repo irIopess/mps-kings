@@ -5,7 +5,7 @@ const assert = require('assert');
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
-const { createHandler } = require('../server');
+const { createHandler, remoteStore } = require('../server');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mps-'));
 const robloxUsers = { anaplays: { id: 1234, name: 'AnaPlays' }, biafc: { id: 5678, name: 'BiaFC' }, newana: { id: 9999, name: 'NewAna' } };
@@ -150,8 +150,13 @@ async function discordLogin(port, c, code) {
   assert.strictEqual(det.messages.length, 2); assert.strictEqual(det.messages[1].from, 'admin'); assert.strictEqual(det.messages[1].author.name, 'Staff'); assert.strictEqual(det.messages[0].mine, true); ok('equipe responde e o membro vê');
 
   assert.strictEqual((await staff.req('POST', '/api/tickets/' + tid + '/status', { status: 'closed' })).data.ticket.status, 'closed');
-  assert.strictEqual((await ana.req('POST', '/api/tickets/' + tid + '/messages', { text: 'Ainda preciso' })).status, 201);
-  assert.strictEqual((await ana.req('GET', '/api/tickets/' + tid)).data.ticket.status, 'open'); ok('fechar e reabrir ao responder');
+  const blocked = await ana.req('POST', '/api/tickets/' + tid + '/messages', { text: 'Ainda preciso' });
+  assert.strictEqual(blocked.status, 403); assert.strictEqual(blocked.data.error, 'ticket_closed');
+  assert.strictEqual((await ana.req('POST', '/api/tickets/' + tid + '/status', { status: 'open' })).status, 403);
+  assert.strictEqual((await ana.req('GET', '/api/tickets/' + tid)).data.ticket.status, 'closed'); ok('com o ticket fechado o membro não consegue escrever nem reabrir');
+  assert.strictEqual((await staff.req('POST', '/api/tickets/' + tid + '/messages', { text: 'Reabrindo para você' })).status, 201);
+  assert.strictEqual((await ana.req('GET', '/api/tickets/' + tid)).data.ticket.status, 'open');
+  assert.strictEqual((await ana.req('POST', '/api/tickets/' + tid + '/messages', { text: 'Obrigada' })).status, 201); ok('a Staff responde no ticket fechado, ele reabre e o membro volta a escrever');
 
   assert.strictEqual((await ana.req('POST', '/api/profile', { robloxNick: 'x' })).data.error, 'invalid_roblox');
   assert.strictEqual((await ana.req('POST', '/api/profile', { robloxNick: 'NinguemExiste' })).status, 404);
@@ -200,6 +205,36 @@ async function discordLogin(port, c, code) {
   let last = 0;
   for (let i = 0; i < 10 && last !== 429; i++) last = (await anon.req('POST', '/api/staff', { password: 'chute' + i })).status;
   assert.strictEqual(last, 429); ok('muitas tentativas de senha são bloqueadas');
+
+  /* cópia no Upstash: grava e sobrevive a um "reinício" que apaga o disco */
+  const kv = {};
+  const kvFetch = async (url, init = {}) => {
+    if (url === 'https://redis.test') {
+      assert.strictEqual(init.headers.Authorization, 'Bearer tok-redis');
+      const cmd = JSON.parse(init.body);
+      if (cmd[0] === 'SET') { kv[cmd[1]] = cmd[2]; return { ok: true, status: 200, json: async () => ({ result: 'OK' }) }; }
+      return { ok: true, status: 200, json: async () => ({ result: kv[cmd[1]] || null }) };
+    }
+    return fakeFetch(url, init);
+  };
+  const kvEnv = Object.assign({}, env, { UPSTASH_REDIS_REST_URL: 'https://redis.test/', UPSTASH_REDIS_REST_TOKEN: 'tok-redis', DATA_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'mps-')) });
+  const remote1 = remoteStore(kvEnv, kvFetch);
+  assert.strictEqual(remoteStore(env, kvFetch), null);
+  const s1 = http.createServer(createHandler({ env: kvEnv, fetch: kvFetch, remote: remote1, initialDb: await remote1.load() }));
+  await new Promise((r) => s1.listen(0, '127.0.0.1', r));
+  const k1 = client(s1.address().port);
+  await k1.req('POST', '/api/staff', { password: 'EREMITA' });
+  assert.strictEqual((await k1.req('POST', '/api/announcements', { title: 'Sobrevive', text: 'Aos reinícios' })).status, 201);
+  await new Promise((r) => setTimeout(r, 200));
+  s1.close();
+  const kvEnv2 = Object.assign({}, kvEnv, { DATA_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'mps-')) });
+  const remote2 = remoteStore(kvEnv2, kvFetch);
+  const s2 = http.createServer(createHandler({ env: kvEnv2, fetch: kvFetch, remote: remote2, initialDb: await remote2.load() }));
+  await new Promise((r) => s2.listen(0, '127.0.0.1', r));
+  const k2 = client(s2.address().port);
+  await k2.req('POST', '/api/staff', { password: 'EREMITA' });
+  assert.strictEqual((await k2.req('GET', '/api/announcements')).data.announcements[0].title, 'Sobrevive'); ok('com o Upstash os dados sobrevivem a um reinício que apaga o disco');
+  s2.close();
 
   server.close();
   console.log('\nTodos os ' + n + ' testes passaram.');

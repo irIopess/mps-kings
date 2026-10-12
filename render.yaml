@@ -17,6 +17,10 @@ services:
         sync: false        # cole o Client Secret do Discord
       - key: DISCORD_BOT_TOKEN
         sync: false        # opcional: token do bot (aba Bot), para mostrar os cargos
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false        # guarda os dados fora do Render (veja o README)
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
       - key: DISCORD_CLIENT_ID
         value: "1559004196303278140"
     # disk:                # só no plano pago

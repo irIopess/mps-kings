@@ -18,15 +18,39 @@ const MIME = {
 const TERMS_VERSION = 1;
 const MAX_USERS = 50000;
 
+/* ---------- cópia fora do Render (Upstash Redis, opcional) ----------
+   No plano grátis do Render o disco é apagado a cada reinício ou atualização. Com as duas variáveis
+   UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN, os dados também ficam guardados no Upstash. */
+function remoteStore(env, doFetch) {
+  const url = String(env.UPSTASH_REDIS_REST_URL || '').trim().replace(/\/+$/, '');
+  const token = String(env.UPSTASH_REDIS_REST_TOKEN || '').trim();
+  if (!url || !token) return null;
+  const call = async (cmd) => {
+    const r = await doFetch(url, { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(cmd), signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error('upstash_http_' + r.status);
+    const j = await r.json();
+    if (j && j.error) throw new Error('upstash_' + String(j.error).slice(0, 80));
+    return j ? j.result : null;
+  };
+  return {
+    load: async () => { const v = await call(['GET', 'mps-db']); return v ? JSON.parse(v) : null; },
+    save: (db) => call(['SET', 'mps-db', JSON.stringify(db)]),
+  };
+}
+
 /* ---------- armazenamento (arquivo JSON, gravação atômica) ---------- */
-function createStore(dir) {
+function createStore(dir, extra = {}) {
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, 'db.json');
   let db = { users: {}, tickets: {}, messages: {}, announcements: {} };
-  try {
-    db = Object.assign(db, JSON.parse(fs.readFileSync(file, 'utf8')));
-  } catch (e) {
-    if (e.code !== 'ENOENT') throw e;
+  if (extra.initialDb) {
+    db = Object.assign(db, extra.initialDb);
+  } else {
+    try {
+      db = Object.assign(db, JSON.parse(fs.readFileSync(file, 'utf8')));
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e;
+    }
   }
   let queue = Promise.resolve();
   function save() {
@@ -35,7 +59,9 @@ function createStore(dir) {
         const tmp = file + '.tmp';
         return fs.promises.writeFile(tmp, JSON.stringify(db)).then(() => fs.promises.rename(tmp, file));
       })
-      .catch((e) => console.error('Falha ao salvar os dados:', e));
+      .catch((e) => console.error('Falha ao salvar os dados:', e))
+      .then(() => extra.remote && extra.remote.save(db))
+      .catch((e) => console.error('Falha ao guardar no Upstash:', e.message));
     return queue;
   }
   return { db, save };
@@ -54,7 +80,7 @@ function createHandler(opts = {}) {
   const DISCORD_BOT = String(env.DISCORD_BOT_TOKEN || '').trim(); // opcional: só para ler nome e cor dos cargos
   const DISCORD_ON = !!DISCORD_SECRET;
   const DISCORD_REDIRECT = BASE_URL + '/auth/discord/callback';
-  const store = createStore(env.DATA_DIR || path.join(__dirname, 'data'));
+  const store = createStore(env.DATA_DIR || path.join(__dirname, 'data'), { initialDb: opts.initialDb, remote: opts.remote });
   const db = store.db;
   const SECURE = BASE_URL.startsWith('https://');
   const SESSION_DAYS = 365;
@@ -424,6 +450,7 @@ function createHandler(opts = {}) {
     if (!t || !canSee(ctx, t)) return send(ctx.res, 404, { error: 'not_found' });
     const text = clean(ctx.body.text, 2000);
     if (!text) return send(ctx.res, 400, { error: 'missing_fields' });
+    if (t.status === 'closed' && !ctx.isAdmin) return send(ctx.res, 403, { error: 'ticket_closed' });
     if (limited('act:' + ctx.user.id, 20, 60000)) return send(ctx.res, 429, { error: 'rate_limited' });
     const list = db.messages[t.id] || (db.messages[t.id] = []);
     if (list.length >= 1000) return send(ctx.res, 400, { error: 'ticket_full' });
@@ -439,6 +466,7 @@ function createHandler(opts = {}) {
     if (!t || !canSee(ctx, t)) return send(ctx.res, 404, { error: 'not_found' });
     const status = ctx.body.status;
     if (status !== 'open' && status !== 'closed') return send(ctx.res, 400, { error: 'invalid_status' });
+    if (status === 'open' && t.status === 'closed' && !ctx.isAdmin) return send(ctx.res, 403, { error: 'ticket_closed' });
     t.status = status;
     await store.save();
     send(ctx.res, 200, { ticket: ticketView(t, ctx) });
@@ -490,7 +518,7 @@ function createHandler(opts = {}) {
   };
 }
 
-module.exports = { createHandler };
+module.exports = { createHandler, remoteStore };
 
 if (require.main === module) {
   /* lê o arquivo .env (se existir) para quem roda no próprio computador; na hospedagem use as variáveis do painel */
@@ -501,5 +529,19 @@ if (require.main === module) {
     }
   } catch (e) { /* sem .env */ }
   const port = Number(process.env.PORT) || 3000;
-  http.createServer(createHandler()).listen(port, () => console.log('MPS Kings no ar na porta ' + port));
+  (async () => {
+    const remote = remoteStore(process.env, globalThis.fetch);
+    let initialDb = null;
+    if (remote) {
+      try {
+        initialDb = await remote.load();
+        console.log(initialDb ? 'Dados carregados do Upstash.' : 'Upstash vazio: começando do zero.');
+      } catch (e) {
+        /* sem os dados guardados não dá para começar: salvar um banco vazio apagaria tudo */
+        console.error('Não consegui ler o Upstash, o servidor não vai subir:', e.message);
+        process.exit(1);
+      }
+    }
+    http.createServer(createHandler({ remote, initialDb })).listen(port, () => console.log('MPS Kings no ar na porta ' + port));
+  })();
 }
