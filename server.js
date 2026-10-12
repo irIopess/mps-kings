@@ -265,7 +265,7 @@ function createHandler(opts = {}) {
     if (ctx.query.get('terms') !== '1') return send(ctx.res, 302, '', { Location: '/' });
     if (limited('dstart:' + clientIp(ctx.req), 30, 600000)) return send(ctx.res, 429, 'Muitas tentativas');
     const state = crypto.randomBytes(16).toString('hex');
-    const q = new URLSearchParams({ client_id: DISCORD_ID, response_type: 'code', redirect_uri: DISCORD_REDIRECT, scope: 'identify', state, prompt: 'none' });
+    const q = new URLSearchParams({ client_id: DISCORD_ID, response_type: 'code', redirect_uri: DISCORD_REDIRECT, scope: 'identify', state });
     send(ctx.res, 302, '', { Location: 'https://discord.com/oauth2/authorize?' + q, 'Set-Cookie': stateCookie(state + '.' + sign('st' + state)) });
   });
   route('GET', '/auth/discord/callback', async (ctx) => {
