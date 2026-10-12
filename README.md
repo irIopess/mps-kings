@@ -5,8 +5,8 @@ O que o site faz:
 - **Termos de uso**: quem abre o site vê só os termos e o botão **Conectar com Discord** (conectar vale como concordar). O Discord confirma o usuário e a foto (OAuth, escopo `identify`) e a pessoa já entra com isso, sem digitar nick nenhum.
 - **Welcome back**: a Home mostra o usuário e a foto do Discord da pessoa.
 - **My Profile**: foto e usuário do Discord. O nick do Roblox é opcional: a pessoa adiciona ali e o site traz ID e foto do Roblox.
-- **Support**: qualquer membro abre tickets e conversa com a equipe. O Discord (e o Roblox, se informado) vai junto automaticamente.
-- **Staff**: botão que pede a senha da equipe. Quem entra vê todos os tickets numa lista, com o nick e o ID do Roblox e o nick do Discord de cada pessoa, e responde como numa conversa.
+- **Support**: qualquer membro abre tickets e conversa com a Staff. O Discord (e o Roblox, se informado) vai junto automaticamente.
+- **Staff**: botão que pede a senha da Staff. Quem entra vê todos os tickets numa lista, com o nick e o ID do Roblox e o nick do Discord de cada pessoa, e responde como numa conversa.
 - **Links**: abre https://linktr.ee/MPSKings.
 
 O login com Discord é a única forma de os membros entrarem (veja abaixo). Não precisa instalar pacote. O servidor usa só o Node (versão 18 ou mais nova).
@@ -51,7 +51,7 @@ Usuários e tickets ficam num arquivo (`db.json`) dentro de `DATA_DIR`. Se o ser
 
 - **O Roblox não é verificado como sendo da pessoa.** O usuário precisa existir, mas alguém pode informar o nick de outra pessoa. O Discord, esse sim, é confirmado pelo login.
 - **Quem entra de outro aparelho** continua com a mesma conta e os tickets, porque o Discord identifica a pessoa. Sem o login do Discord ninguém entra como membro.
-- **A senha da equipe é uma só.** Quem souber a senha vê todos os tickets de todos. Para trocar, mude `STAFF_PASSWORD` e reinicie o serviço. A senha não diferencia maiúsculas de minúsculas. Ela fica só na variável do servidor, não no código do site. Depois de 8 tentativas erradas em 10 minutos, o IP é bloqueado por um tempo.
+- **A senha da Staff é uma só.** Quem souber a senha vê todos os tickets de todos. Para trocar, mude `STAFF_PASSWORD` e reinicie o serviço. A senha não diferencia maiúsculas de minúsculas. Ela fica só na variável do servidor, não no código do site. Depois de 8 tentativas erradas em 10 minutos, o IP é bloqueado por um tempo.
 - **Limites por segurança:** 20 ações por minuto por pessoa, 10 cadastros por hora por IP, no máximo 10 tickets abertos por membro, mensagens de até 2000 caracteres.
 - **Privacidade:** o servidor guarda o ID, o usuário e a foto do Discord, o nick e o ID do Roblox (se a pessoa informar), a data em que a pessoa concordou com os termos e os tickets. Não guarda e-mail.
 

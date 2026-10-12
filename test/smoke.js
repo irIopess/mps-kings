@@ -134,7 +134,7 @@ async function discordLogin(port, c, code) {
   noPw.close(); ok('sem as variáveis, Staff e login com Discord ficam desligados');
 
   const st = await staff.req('POST', '/api/staff', { password: 'eremita' });
-  assert.strictEqual(st.status, 200); assert.strictEqual(st.data.user.isAdmin, true); assert.strictEqual(st.data.user.name, 'Equipe');
+  assert.strictEqual(st.status, 200); assert.strictEqual(st.data.user.isAdmin, true); assert.strictEqual(st.data.user.name, 'Staff');
   assert.strictEqual((await staff.req('GET', '/api/me')).data.user.isAdmin, true); ok('senha EREMITA entra como equipe (sem diferenciar maiúsculas)');
   list = (await staff.req('GET', '/api/tickets')).data.tickets;
   assert.strictEqual(list.length, 1); assert.strictEqual(list[0].unread, true); assert.strictEqual(list[0].author.discordNick, 'ana_dc'); assert.ok(list[0].author.avatar); ok('equipe vê o ticket com o Discord de quem abriu');
@@ -147,7 +147,7 @@ async function discordLogin(port, c, code) {
   list = (await ana.req('GET', '/api/tickets')).data.tickets;
   assert.strictEqual(list[0].unread, true); assert.strictEqual(list[0].lastFrom, 'admin');
   det = (await ana.req('GET', '/api/tickets/' + tid)).data;
-  assert.strictEqual(det.messages.length, 2); assert.strictEqual(det.messages[1].from, 'admin'); assert.strictEqual(det.messages[1].author.name, 'Equipe'); assert.strictEqual(det.messages[0].mine, true); ok('equipe responde e o membro vê');
+  assert.strictEqual(det.messages.length, 2); assert.strictEqual(det.messages[1].from, 'admin'); assert.strictEqual(det.messages[1].author.name, 'Staff'); assert.strictEqual(det.messages[0].mine, true); ok('equipe responde e o membro vê');
 
   assert.strictEqual((await staff.req('POST', '/api/tickets/' + tid + '/status', { status: 'closed' })).data.ticket.status, 'closed');
   assert.strictEqual((await ana.req('POST', '/api/tickets/' + tid + '/messages', { text: 'Ainda preciso' })).status, 201);

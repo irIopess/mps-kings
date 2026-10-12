@@ -209,7 +209,7 @@ function createHandler(opts = {}) {
   function publicUser(u) {
     return {
       id: u.id, isAdmin: !!u.isStaff,
-      name: u.isStaff ? 'Equipe' : (u.discordId ? (u.discordServerNick || u.discordNick) : u.robloxName),
+      name: u.isStaff ? 'Staff' : (u.discordId ? (u.discordServerNick || u.discordNick) : u.robloxName),
       robloxName: u.robloxName || null, robloxId: u.robloxId || null,
       avatar: u.robloxAvatar || null, discordNick: u.discordNick || null,
       discordAvatar: u.discordAvatar || null, discordLinked: !!u.discordId,
@@ -220,7 +220,7 @@ function createHandler(opts = {}) {
     const u = db.users[uid];
     if (!u) return { id: uid, name: 'Membro', avatar: null, robloxName: null, robloxId: null, discordNick: null };
     return {
-      id: u.id, name: u.isStaff ? 'Equipe' : (u.discordId ? (u.discordServerNick || u.discordNick) : u.robloxName), avatar: u.discordAvatar || u.robloxAvatar || null,
+      id: u.id, name: u.isStaff ? 'Staff' : (u.discordId ? (u.discordServerNick || u.discordNick) : u.robloxName), avatar: u.discordAvatar || u.robloxAvatar || null,
       robloxName: u.robloxName || null, robloxId: u.robloxId || null, discordNick: u.discordNick || null,
       serverNick: u.discordServerNick || null,
     };

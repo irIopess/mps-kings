@@ -2,7 +2,7 @@
   'use strict';
   var $ = function (s) { return document.querySelector(s); };
   var S = {
-    me: null, ready: false,
+    me: null, ready: false, seenRows: {}, seenMsgs: {},
     tickets: [], ticketsSig: '', loaded: false, loadedOnce: false, filter: 'open',
     selected: null, composing: false, cur: null, msgs: [], sig: '', threadKey: '',
     sending: false, editProfile: false
@@ -74,28 +74,50 @@
       case 'roblox_not_found': return 'Não achei esse usuário no Roblox. Confira o nick (o nome de usuário, não o de exibição).';
       case 'roblox_unavailable': return 'O Roblox não respondeu agora. Tente de novo em instantes.';
       case 'wrong_password': return 'Senha incorreta.';
-      case 'staff_disabled': return 'O acesso da equipe não está configurado neste servidor.';
+      case 'staff_disabled': return 'O acesso da Staff não está configurado neste servidor.';
       case 'full': return 'O site está lotado no momento. Tente mais tarde.';
       default: return 'Algo deu errado. Tente de novo.';
     }
   }
   function resetData() {
     S.tickets = []; S.ticketsSig = ''; S.loaded = false; S.loadedOnce = false;
-    S.selected = null; S.composing = false; S.cur = null; S.msgs = []; S.sig = ''; S.editProfile = false;
+    S.selected = null; S.composing = false; S.cur = null; S.msgs = []; S.sig = ''; S.editProfile = false; S.seenRows = {}; S.seenMsgs = {};
   }
   function authLost() {
     S.me = null; resetData();
     renderAll();
   }
 
+  /* ---------- pílula que desliza entre as abas ---------- */
+  var pill = null;
+  function movePill() {
+    var nav = document.querySelector('.nav'), cur = nav && nav.querySelector('a[aria-current="page"]');
+    if (!nav || !cur || !cur.offsetWidth) return;
+    if (!pill) { pill = document.createElement('span'); pill.className = 'nav-pill'; pill.setAttribute('aria-hidden', 'true'); nav.prepend(pill); }
+    pill.style.width = cur.offsetWidth + 'px';
+    pill.style.transform = 'translateX(' + cur.offsetLeft + 'px)';
+    if (!pill.classList.contains('ready')) requestAnimationFrame(function () { requestAnimationFrame(function () { pill.classList.add('ready'); }); });
+  }
+  window.addEventListener('resize', movePill);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(movePill);
+
   /* ---------- telas ---------- */
   var VIEWS = ['home', 'profile', 'support'];
-  var current = 'home';
+  var current = 'home', lastShown = '';
+  var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   function show(v) {
     if (VIEWS.indexOf(v) < 0) v = 'home';
     current = v;
     var guest = S.ready && !S.me;
     document.body.classList.toggle('guest', guest);
+    if (S.ready) {
+      var key = guest ? 'login' : v;
+      if (key !== lastShown) {
+        lastShown = key;
+        var el = $('#view-' + key);
+        el.classList.remove('enter'); void el.offsetWidth; el.classList.add('enter');
+      }
+    }
     $('#view-login').hidden = !guest;
     VIEWS.forEach(function (n) {
       $('#view-' + n).hidden = guest || !S.ready || n !== v;
@@ -103,6 +125,7 @@
       if (n === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     if (guest || !S.ready) return;
+    movePill();
     if (v === 'profile') renderProfile();
     if (v === 'support') { renderSupport(); loadTickets(); }
   }
@@ -173,13 +196,13 @@
     $('#me-user').hidden = !me;
     if (me) {
       $('#me-img').src = meAvatar(me);
-      $('#me-name').textContent = me.isAdmin ? 'Equipe' : (me.discordNick || me.name);
+      $('#me-name').textContent = me.isAdmin ? 'Staff' : (me.discordNick || me.name);
       $('#me-tag').hidden = !me.isAdmin;
     }
     var ha = $('#hero-avatar');
     ha.hidden = !(me && !me.isAdmin);
     if (me && !me.isAdmin) ha.src = meAvatar(me);
-    $('#hero-name').textContent = me ? (me.isAdmin ? 'Equipe' : me.name) : 'Visitante';
+    $('#hero-name').textContent = me ? (me.isAdmin ? 'Staff' : me.name) : 'Visitante';
     $('#hero-eyebrow').textContent = me ? 'Welcome back' : 'Welcome';
     var n = counts();
     $('#nav-badge').hidden = !(me && n.unread > 0);
@@ -187,8 +210,8 @@
     if (me && me.isAdmin) {
       title.textContent = n.open + (n.open === 1 ? ' ticket aberto' : ' tickets abertos');
       sub.textContent = n.unread ? n.unread + (n.unread === 1 ? ' conversa com mensagem nova.' : ' conversas com mensagem nova.') : 'Responda as conversas dos membros aqui.';
-    } else if (n.unread) { title.textContent = 'Resposta nova'; sub.textContent = 'A equipe respondeu um dos seus tickets.'; }
-    else { title.textContent = 'Tickets'; sub.textContent = 'Abra um ticket e converse com a equipe.'; }
+    } else if (n.unread) { title.textContent = 'Resposta nova'; sub.textContent = 'A Staff respondeu um dos seus tickets.'; }
+    else { title.textContent = 'Tickets'; sub.textContent = 'Abra um ticket e converse com a Staff.'; }
   }
 
   function nickField(id, label, value, placeholder, max) {
@@ -201,10 +224,12 @@
     var box = h('div', { class: 'prow' }, h('span', { class: 'plabel', text: 'Cargos no servidor' }));
     if (me.roles && me.roles.length) {
       var list = h('div', { class: 'roles' });
-      me.roles.forEach(function (r) {
+      me.roles.forEach(function (r, i) {
         var dot = h('span', { class: 'rdot' });
         dot.style.backgroundColor = r.color || '#99aab5';
-        list.append(h('span', { class: 'role' }, dot, h('span', { text: r.name })));
+        var chip = h('span', { class: 'role' }, dot, h('span', { text: r.name }));
+        chip.style.setProperty('--i', String(Math.min(i, 10)));
+        list.append(chip);
       });
       box.append(list);
     } else {
@@ -218,7 +243,7 @@
     if (!S.ready || !S.me) return;
     var me = S.me;
     if (me.isAdmin) {
-      box.append(h('div', { class: 'gate' }, h('p', { text: 'Conta da equipe. Você vê e responde os tickets de todos os membros.' })));
+      box.append(h('div', { class: 'gate' }, h('p', { text: 'Conta da Staff. Você vê e responde os tickets de todos os membros.' })));
       return;
     }
     var pic = me.discordAvatar || me.avatar;
@@ -258,7 +283,7 @@
     if (!S.me) return;
     var grid = $('#grid');
     $('#btn-new').hidden = S.me.isAdmin;
-    $('#sup-sub').textContent = S.me.isAdmin ? 'Painel da equipe. Todas as conversas dos membros.' : 'Suas conversas com a equipe.';
+    $('#sup-sub').textContent = S.me.isAdmin ? 'Painel da Staff. Todas as conversas dos membros.' : 'Suas conversas com a Staff.';
 
     var n = counts();
     $('#ct-open').textContent = n.open; $('#ct-closed').textContent = n.closed;
@@ -277,7 +302,7 @@
       if (!S.loaded) empty.append(h('strong', { text: 'Carregando' }), 'Buscando os tickets.');
       else if (!S.tickets.length) empty.append(
         h('strong', { text: S.me.isAdmin ? 'Nenhum ticket ainda' : 'Nenhum ticket aberto' }),
-        S.me.isAdmin ? 'Quando um membro abrir um ticket, a conversa aparece aqui.' : 'Use Novo ticket para falar com a equipe.');
+        S.me.isAdmin ? 'Quando um membro abrir um ticket, a conversa aparece aqui.' : 'Use Novo ticket para falar com a Staff.');
       else empty.append(h('strong', { text: 'Escolha uma conversa' }), 'Selecione um ticket na lista para ver as mensagens.');
     }
     if (showThread) { renderThreadHead(t); renderMsgs(t); }
@@ -292,10 +317,14 @@
         S.loaded ? 'Nenhum ticket nesta lista.' : 'Buscando os tickets.'));
       return;
     }
+    var freshN = 0;
     rows.forEach(function (t) {
       var sel = S.selected === t.id;
-      var who = S.me.isAdmin ? (t.author.name || 'Membro') : (t.lastFrom === 'admin' ? 'Equipe' : 'Você');
-      ul.append(h('li', null,
+      if (!S.seenRows[t.id]) S.seenRows[t.id] = Date.now();
+      var age = Date.now() - S.seenRows[t.id], isNew = age < 900;
+      var rowLi = null;
+      var who = S.me.isAdmin ? (t.author.name || 'Membro') : (t.lastFrom === 'admin' ? 'Staff' : 'Você');
+      ul.append(rowLi = h('li', null,
         h('button', { class: 'row', type: 'button', 'aria-current': sel ? 'true' : null, onclick: function () { openTicket(t.id); } },
           h('span', { class: 'row-top' },
             h('span', { class: 'row-subject', text: t.subject }),
@@ -304,6 +333,7 @@
           h('span', { class: 'row-meta' },
             h('span', { class: 'who', text: shortId(t.id) + ' · ' + who }),
             h('time', { text: fmt(t.updatedAt) })))));
+      if (isNew) { var rb = rowLi.firstChild; rb.classList.add('fresh'); rb.style.setProperty('--i', String(Math.min(freshN++, 8))); rb.style.setProperty('--el', age + 'ms'); }
     });
   }
 
@@ -328,17 +358,23 @@
     var box = $('#msgs');
     var near = box.scrollHeight - box.scrollTop - box.clientHeight < 90;
     box.replaceChildren();
-    S.msgs.forEach(function (m) {
-      var by = m.mine ? 'Você' : (m.from === 'admin' ? 'Equipe' : ((m.author && m.author.name) || 'Membro'));
-      box.append(h('div', { class: 'm' + (m.mine ? ' mine' : '') },
+    if (S.threadKey !== t.id) S.seenMsgs = {};
+    var firstLoad = S.threadKey !== t.id, freshM = 0, total = S.msgs.length;
+    S.msgs.forEach(function (m, idx) {
+      var by = m.mine ? 'Você' : (m.from === 'admin' ? 'Staff' : ((m.author && m.author.name) || 'Membro'));
+      if (!S.seenMsgs[m.id]) S.seenMsgs[m.id] = (firstLoad && idx < total - 8) ? 1 : Date.now();
+      var ageM = Date.now() - S.seenMsgs[m.id], isNewM = ageM < 900;
+      var mEl = h('div', { class: 'm' + (m.mine ? ' mine' : '') },
         h('div', { class: 'bubble', text: String(m.text || '') }),
-        h('div', { class: 'by', text: by + ' · ' + fmt(m.at) })));
+        h('div', { class: 'by', text: by + ' · ' + fmt(m.at) }));
+      if (isNewM && (!firstLoad || idx >= total - 8)) { mEl.classList.add('fresh'); mEl.style.setProperty('--i', String(firstLoad ? freshM++ : 0)); mEl.style.setProperty('--el', ageM + 'ms'); }
+      box.append(mEl);
     });
     if (near || S.threadKey !== t.id) box.scrollTop = box.scrollHeight;
     S.threadKey = t.id;
   }
 
-  /* ---------- senha da equipe ---------- */
+  /* ---------- senha da Staff ---------- */
   function openStaff() {
     var dlg = $('#staff-dialog');
     $('#staff-pass').value = ''; $('#staff-err').textContent = '';
@@ -378,7 +414,7 @@
       api('/api/staff', { method: 'POST', body: { password: pass } }).then(function (res) {
         resetData(); S.me = res.user; current = 'home';
         try { history.replaceState(null, '', '#home'); } catch (e) {}
-        closeStaff(); renderAll(); window.scrollTo(0, 0); loadTickets(); toast('Você entrou como equipe.');
+        closeStaff(); renderAll(); window.scrollTo(0, 0); loadTickets(); toast('Você entrou como Staff.');
       }).catch(function (e) { err.textContent = errText(e); $('#staff-pass').select(); })
         .then(function () { S.sending = false; $('#staff-send').disabled = false; });
     });

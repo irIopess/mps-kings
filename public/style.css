@@ -201,3 +201,90 @@ body.guest .top { display: none; }
 .roles { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .role { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); font-size: 13.5px; font-weight: 600; }
 .rdot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+
+/* ---------- animações (fluidas, e desligadas para quem prefere menos movimento) ---------- */
+:root { --ease: cubic-bezier(0.22, 0.9, 0.28, 1); --spring: cubic-bezier(0.3, 1.35, 0.4, 1); }
+@keyframes rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+@keyframes dropin { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: none; } }
+@keyframes msgin { from { opacity: 0; transform: translateY(10px) scale(0.94); } to { opacity: 1; transform: none; } }
+@keyframes sheen { 0% { background-position: 130% 0; } 60%, 100% { background-position: -60% 0; } }
+@keyframes sweep { 0% { transform: translateX(-130%) skewX(-20deg); } 55%, 100% { transform: translateX(260%) skewX(-20deg); } }
+@keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(245, 245, 246, 0.55); } 80%, 100% { box-shadow: 0 0 0 9px rgba(245, 245, 246, 0); } }
+
+.top { animation: dropin 0.6s var(--ease) both; }
+
+/* entrada de cada tela (a classe .enter é posta pelo JS quando a tela muda) */
+#view-home.enter .hero { animation: rise 0.75s var(--ease) both; }
+#view-home.enter .hero-avatar { animation: pop 0.7s var(--spring) 0.2s both; }
+#view-home.enter #hero-eyebrow { animation: rise 0.6s var(--ease) 0.28s both; }
+#view-home.enter .hero-name { animation: rise 0.8s var(--ease) 0.36s both; }
+#view-home.enter .cards .card { animation: rise 0.7s var(--ease) both; }
+#view-home.enter .cards .card:nth-child(1) { animation-delay: 0.45s; }
+#view-home.enter .cards .card:nth-child(2) { animation-delay: 0.55s; }
+#view-profile.enter .profile-card { animation: rise 0.7s var(--ease) both; }
+#view-profile.enter .rb-photo { animation: pop 0.7s var(--spring) 0.15s both; }
+#view-profile.enter .prow { animation: rise 0.55s var(--ease) both; }
+#view-profile.enter .prow:nth-child(1) { animation-delay: 0.15s; }
+#view-profile.enter .prow:nth-child(2) { animation-delay: 0.23s; }
+#view-profile.enter .prow:nth-child(3) { animation-delay: 0.31s; }
+#view-support.enter .sup-grid { animation: rise 0.7s var(--ease) both; }
+#view-login.enter .login-card { animation: rise 0.8s var(--ease) both; }
+#view-login.enter .login-logo { animation: pop 0.8s var(--spring) 0.12s both, floaty 6s ease-in-out 1s infinite; }
+#view-login.enter .login-card h1, #view-login.enter .login-card .terms, #view-login.enter .login-card .phint, #view-login.enter .login-card .btn { animation: rise 0.7s var(--ease) both; }
+#view-login.enter .login-card h1 { animation-delay: 0.22s; }
+#view-login.enter .login-card .terms { animation-delay: 0.3s; }
+#view-login.enter .login-card .phint { animation-delay: 0.36s; }
+#view-login.enter .login-card #btn-agree { animation-delay: 0.42s; }
+#view-login.enter .login-card .staff-entry { animation-delay: 0.5s; }
+
+/* brilho que passeia pelo destaque e pelo botão principal */
+.hero::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.07) 50%, transparent 62%) 130% 0 / 260% 100% no-repeat;
+  animation: sheen 9s ease-in-out 1.2s infinite; }
+#btn-agree { position: relative; overflow: hidden; }
+#btn-agree::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(9, 9, 10, 0.16), transparent); animation: sweep 3.6s ease-in-out 1.4s infinite; }
+
+/* toques e movimentos ao interagir */
+.card { transition: transform 0.45s var(--ease), border-color 0.25s, box-shadow 0.45s var(--ease); will-change: transform; }
+.card:hover { transform: translateY(-5px); box-shadow: 0 22px 46px rgba(0, 0, 0, 0.5); }
+.card:active { transform: translateY(-1px) scale(0.985); transition-duration: 0.12s; }
+.card .go, .card .ico { transition: transform 0.4s var(--ease), color 0.25s; }
+.card:hover .go { transform: translate(3px, -3px); color: var(--fg); }
+.card:hover .ico { transform: scale(1.08) rotate(-4deg); }
+.btn { transition: transform 0.2s var(--ease), background 0.2s, border-color 0.2s, opacity 0.2s; }
+.btn:hover:not([disabled]) { transform: translateY(-1px); }
+.btn:active:not([disabled]) { transform: scale(0.95); transition-duration: 0.08s; }
+.linkbtn { transition: color 0.2s, opacity 0.2s; }
+.me-user img { transition: transform 0.35s var(--spring); }
+.me-user img:hover { transform: scale(1.12); }
+.hero-avatar { transition: transform 0.45s var(--spring); }
+.hero-avatar:hover { transform: scale(1.06) rotate(-2deg); }
+.row { transition: background 0.2s, border-color 0.2s, transform 0.25s var(--ease); }
+.row:hover { transform: translateX(3px); }
+.row.fresh { animation: rise 0.5s var(--ease) both; animation-delay: calc(var(--i, 0) * 55ms - var(--el, 0ms)); }
+.m.fresh { animation: msgin 0.45s var(--spring) both; animation-delay: calc(var(--i, 0) * 45ms - var(--el, 0ms)); transform-origin: left bottom; }
+.m.mine.fresh { transform-origin: right bottom; }
+.dot { animation: ping 1.8s ease-out infinite; }
+.role { animation: pop 0.55s var(--spring) both; animation-delay: calc(0.3s + var(--i, 0) * 70ms); transition: transform 0.25s var(--spring), border-color 0.2s; }
+.role:hover { transform: translateY(-2px) scale(1.04); border-color: var(--faint); }
+.toast { animation: rise 0.4s var(--spring) both; }
+.dlg[open] { animation: pop 0.35s var(--spring) both; }
+.dlg[open]::backdrop { animation: fade 0.3s ease both; }
+input, textarea { transition: border-color 0.2s, box-shadow 0.25s, background 0.2s; }
+input:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(245, 245, 246, 0.12); }
+
+/* pílula que desliza entre as abas */
+.nav { position: relative; }
+.nav a { z-index: 1; }
+.nav a[aria-current="page"] { background: transparent; }
+.nav-pill { position: absolute; top: 5px; left: 0; height: calc(100% - 10px); width: 0; border-radius: 10px; background: var(--fg); z-index: 0; pointer-events: none; opacity: 0; }
+.nav-pill.ready { opacity: 1; transition: transform 0.5s var(--ease), width 0.5s var(--ease); }
+.nav a { transition: color 0.3s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
