@@ -292,7 +292,8 @@ function createHandler(opts = {}) {
       /* apelido da pessoa no servidor (se ela estiver nele); falhar aqui não impede o login */
       try {
         const mr = await doFetch('https://discord.com/api/users/@me/guilds/' + encodeURIComponent(DISCORD_GUILD) + '/member', { headers: { Authorization: 'Bearer ' + tok.access_token }, signal: AbortSignal.timeout(8000) });
-        if (mr.ok) { const m = await mr.json(); serverNick = m && typeof m.nick === 'string' ? clean(m.nick, 40) || null : null; }
+        if (mr.ok) { const m = await mr.json(); serverNick = m && typeof m.nick === 'string' ? clean(m.nick, 40) || null : null; if (!serverNick) console.log('Discord membro: sem apelido definido no servidor'); }
+        else console.error('Discord membro: HTTP ' + mr.status + ' (scope concedido: ' + String(tok.scope || '?') + ')');
       } catch (e) { /* segue sem o apelido */ }
     } catch (e) { console.error('Discord:', e.message); return fail(res, String(e.message).replace(/[^a-z0-9_]/gi, '_')); }
     if (!du || !/^\d{5,25}$/.test(String(du.id)) || typeof du.username !== 'string') return fail(res, 'dados');
