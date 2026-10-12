@@ -316,6 +316,19 @@
     return api('/api/mps/roles').then(function (r) { S.roles = r; renderRoles(); })
       .catch(function () { S.roles = { unavailable: true }; renderRoles(); });
   }
+  var ROLE_ICONS = {
+    crown: '<path d="m3 7 4.5 4L12 4l4.5 7L21 7l-2 11H5z"/><path d="M5 21h14"/>',
+    tie: '<path d="M9 3h6l-1.5 3h-3z"/><path d="m10.5 6-2 13 3.5 2 3.5-2-2-13"/>',
+    diamond: '<path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20M9 3l-2 6 5 12 5-12-2-6"/>',
+    handshake: '<path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.7-3.7a1 1 0 0 0-1.4 0l-1.6 1.6a1 1 0 1 1-3-3l2.2-2.2a4.8 4.8 0 0 1 4.7-.5L22 8"/><path d="m21 3 1 11h-2M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3M3 4h8"/>'
+  };
+  function roleIcon(name, color) {
+    if (!ROLE_ICONS[name]) return null;
+    var w = h('span', { class: 'ricon' });
+    w.innerHTML = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + ROLE_ICONS[name] + '</svg>';
+    if (color) w.style.color = color;
+    return w;
+  }
   function renderRoles() {
     var box = $('#roles-list'), r = S.roles;
     box.replaceChildren();
@@ -335,7 +348,7 @@
         chips.append(h('span', { class: 'pchip' }, img, h('span', { text: m.name })));
       });
       if (!ro.members.length) chips.append(h('span', { class: 'muted', text: 'Ninguém' }));
-      var sec = h('section', { class: 'rgroup' }, h('h3', {}, dot, h('span', { text: ro.name }), h('span', { class: 'cnt', text: String(ro.members.length) })), chips);
+      var sec = h('section', { class: 'rgroup' }, h('h3', {}, roleIcon(ro.icon, ro.color) || dot, h('span', { text: ro.name }), h('span', { class: 'cnt', text: String(ro.members.length) })), chips);
       sec.style.setProperty('--i', Math.min(i, 12));
       box.append(sec);
     });

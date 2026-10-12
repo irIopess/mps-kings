@@ -369,3 +369,4 @@ input:focus, textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc
 .ban-det dt{opacity:.6}.ban-det dd{margin:0}
 .setup-card select{width:100%}
 @media (prefers-reduced-motion:reduce){.subnav,.ban-body,.rgroup,.ban{transition:none;animation:none}}
+.ricon{display:inline-flex}.ricon svg.i{width:22px;height:22px}

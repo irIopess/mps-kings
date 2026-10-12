@@ -404,12 +404,12 @@ function createHandler(opts = {}) {
   }
   /* lista manual (do mais alto ao mais baixo), usada quando o bot do Discord não está configurado */
   const MANUAL_ROLES = [
-    { name: 'King', color: '#f5b942', members: ['__henri_que.'] },
-    { name: 'Presidents', color: '#ff6464', members: ['frost.bte'] },
-    { name: 'Prince', color: '#b07bff', members: ['examinadores', 'doriian38'] },
-    { name: 'Contribuidor', color: '#3ddc84', members: ['mcfabezxcxz', 'cook1d', 'sog2407'] },
+    { name: 'King', icon: 'crown', color: '#f5b942', members: ['__henri_que.'] },
+    { name: 'Presidents', icon: 'tie', color: '#ff6464', members: ['frost.bte'] },
+    { name: 'Prince', icon: 'diamond', color: '#b07bff', members: ['examinadores', 'doriian38'] },
+    { name: 'Contribuidor', icon: 'handshake', color: '#3ddc84', members: ['mcfabezxcxz', 'cook1d', 'sog2407'] },
   ];
-  const manualView = () => ({ manual: true, total: MANUAL_ROLES.reduce((n, r) => n + r.members.length, 0), roles: MANUAL_ROLES.map((r) => ({ name: r.name, color: r.color, members: r.members.map((name) => ({ name, avatar: null })) })) });
+  const manualView = () => ({ manual: true, total: MANUAL_ROLES.reduce((n, r) => n + r.members.length, 0), roles: MANUAL_ROLES.map((r) => ({ name: r.name, icon: r.icon, color: r.color, members: r.members.map((name) => ({ name, avatar: null })) })) });
   route('GET', '/api/mps/roles', { login: true }, async (ctx) => {
     try {
       if (!membersCache.view || now() - membersCache.at > 300000) membersCache = { at: now(), view: await loadMembers() };
