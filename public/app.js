@@ -321,7 +321,8 @@
     box.replaceChildren();
     if (!r) { box.append(h('div', { class: 'ann-empty', text: 'Carregando…' })); return; }
     if (r.unavailable) {
-      box.append(h('div', { class: 'ann-empty', text: 'A lista de roles não está disponível agora.' + (r.reason ? ' (' + r.reason + ')' : '') }));
+      var why = { sem_bot: 'Falta o DISCORD_BOT_TOKEN no Render.', cargos_indisponiveis: 'O bot não conseguiu ler os cargos: confira o token e se o bot está no servidor.', HTTP_403: 'Ligue o "Server Members Intent" do bot no Developer Portal (aba Bot).' };
+      box.append(h('div', { class: 'ann-empty', text: 'A lista de roles não está disponível agora.' + (r.reason ? ' ' + (why[r.reason] || '(' + r.reason + ')') : '') }));
       return;
     }
     r.roles.forEach(function (ro, i) {
