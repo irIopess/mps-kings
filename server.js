@@ -22,7 +22,8 @@ const MAX_USERS = 50000;
    No plano grátis do Render o disco é apagado a cada reinício ou atualização. Com as duas variáveis
    UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN, os dados também ficam guardados no Upstash. */
 function remoteStore(env, doFetch) {
-  const url = String(env.UPSTASH_REDIS_REST_URL || '').trim().replace(/\/+$/, '');
+  let url = String(env.UPSTASH_REDIS_REST_URL || '').trim().replace(/\/+$/, '');
+  if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url.replace(/^[a-z]+:\/\//i, '');
   const token = String(env.UPSTASH_REDIS_REST_TOKEN || '').trim();
   if (!url || !token) return null;
   const call = async (cmd) => {
@@ -628,7 +629,8 @@ if (require.main === module) {
         console.log(initialDb ? 'Dados carregados do Upstash.' : 'Upstash vazio: começando do zero.');
       } catch (e) {
         /* sem os dados guardados não dá para começar: salvar um banco vazio apagaria tudo */
-        console.error('Não consegui ler o Upstash, o servidor não vai subir:', e.message);
+        console.error('Não consegui ler o Upstash, o servidor não vai subir:', e.message, e.cause ? String(e.cause.message || e.cause) : '');
+        console.error('Confira no Render: UPSTASH_REDIS_REST_URL deve ser a "REST URL" (começa com https://) e UPSTASH_REDIS_REST_TOKEN o "REST Token" (aba REST API do banco), sem aspas nem espaços.');
         process.exit(1);
       }
     }
