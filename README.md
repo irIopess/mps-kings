@@ -29,6 +29,7 @@ O login com Discord é a única forma de os membros entrarem (veja abaixo). Não
 | `SESSION_SECRET` | Um texto longo e aleatório. Para gerar: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `STAFF_PASSWORD` | `EREMITA` (a senha do botão Staff) |
 | `DISCORD_CLIENT_SECRET` | o Client Secret do seu app no Discord (obrigatória: sem ela os membros não conseguem entrar) |
+| `DISCORD_BOT_TOKEN` | opcional: token do bot do seu app (aba Bot), que precisa estar dentro do servidor. É só para ler o nome e a cor dos cargos; sem ele o perfil mostra "Cargos indisponíveis" |
 | `DISCORD_CLIENT_ID` | opcional; já vem `1559004196303278140` |
 | `DATA_DIR` | Pasta do disco persistente (veja abaixo). Ex.: `/var/data` |
 
@@ -67,3 +68,5 @@ Usuários e tickets ficam num arquivo (`db.json`) dentro de `DATA_DIR`. Se o ser
 3. Pronto: o botão da tela de termos, **Conectar com Discord**, leva ao login do Discord. O site confirma o nome de usuário e a foto do Discord (escopos `identify` e `guilds.members.read`, sem e-mail), entra direto com essa foto e esse nome (o nick do Roblox é opcional e se adiciona em My Profile). Quem voltar com o Discord, de qualquer aparelho, recupera a mesma conta e os tickets.
 
 O Welcome back mostra o **apelido da pessoa no servidor** do Discord (ID `1531329234105139331`, mude com `DISCORD_GUILD_ID`). Se ela não estiver no servidor ou não tiver apelido, aparece o nome de usuário.
+
+No **My Profile** aparecem o usuário do Discord, o apelido no servidor e os cargos dele (bolinha na cor do cargo e o nome em uma caixa). Os cargos são lidos no momento do login. O topo da página mostra o usuário (nick), e só o Welcome back usa o apelido.

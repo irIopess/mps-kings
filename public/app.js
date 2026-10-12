@@ -173,7 +173,7 @@
     $('#me-user').hidden = !me;
     if (me) {
       $('#me-img').src = meAvatar(me);
-      $('#me-name').textContent = me.isAdmin ? 'Equipe' : me.name;
+      $('#me-name').textContent = me.isAdmin ? 'Equipe' : (me.discordNick || me.name);
       $('#me-tag').hidden = !me.isAdmin;
     }
     var ha = $('#hero-avatar');
@@ -195,6 +195,22 @@
     return h('div', { class: 'field' },
       h('label', { for: id, text: label }),
       h('input', { id: id, maxlength: String(max), placeholder: placeholder, value: value || '', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false' }));
+  }
+
+  function rolesBlock(me) {
+    var box = h('div', { class: 'prow' }, h('span', { class: 'plabel', text: 'Cargos no servidor' }));
+    if (me.roles && me.roles.length) {
+      var list = h('div', { class: 'roles' });
+      me.roles.forEach(function (r) {
+        var dot = h('span', { class: 'rdot' });
+        dot.style.backgroundColor = r.color || '#99aab5';
+        list.append(h('span', { class: 'role' }, dot, h('span', { text: r.name })));
+      });
+      box.append(list);
+    } else {
+      box.append(h('p', { class: 'pid', text: me.rolesUnavailable ? 'Cargos indisponíveis no momento.' : 'Nenhum cargo no servidor.' }));
+    }
+    return box;
   }
 
   function renderProfile() {
@@ -231,7 +247,10 @@
       info = h('div', null,
         h('div', { class: 'prow' }, h('span', { class: 'plabel', text: 'Discord' }),
           h('p', { class: 'pvalue', text: me.discordNick }),
-          me.discordLinked ? h('span', { class: 'pid', text: 'Conta do Discord conectada' }) : null),
+          me.discordLinked ? h('span', { class: 'pid', text: 'Nick (usuário) da conta conectada' }) : null),
+        me.discordLinked ? h('div', { class: 'prow' }, h('span', { class: 'plabel', text: 'Apelido no servidor' }),
+          h('p', { class: 'pvalue', text: me.serverNick || 'Sem apelido no servidor' })) : null,
+        me.discordLinked ? rolesBlock(me) : null,
         h('div', { class: 'prow' }, h('span', { class: 'plabel', text: 'Roblox' }),
           h('p', { class: 'pvalue', text: me.robloxName || 'Não informado' }),
           me.robloxId ? h('span', { class: 'pid', text: 'ID do Roblox · ' + me.robloxId }) : null),

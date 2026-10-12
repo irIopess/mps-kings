@@ -32,7 +32,11 @@ const fakeFetch = async (url, init = {}) => {
   }
   if (u.startsWith('https://discord.com/api/users/@me/guilds/1531329234105139331/member')) {
     const c = String(init.headers.Authorization).replace('Bearer tok-', '');
-    return c === 'ana' ? json({ nick: 'Ana Capitã' }) : json({ message: 'Unknown Guild' }, false, 404);
+    return c === 'ana' ? json({ nick: 'Ana Capitã', roles: ['900000000000000002', '900000000000000001'] }) : json({ message: 'Unknown Guild' }, false, 404);
+  }
+  if (u === 'https://discord.com/api/guilds/1531329234105139331/roles') {
+    assert.strictEqual(init.headers.Authorization, 'Bot bot-token');
+    return json([{ id: '1531329234105139331', name: '@everyone', color: 0, position: 0 }, { id: '900000000000000001', name: 'Capitão', color: 0xe74c3c, position: 5 }, { id: '900000000000000002', name: 'Jogador', color: 0, position: 1 }]);
   }
   throw new Error('fetch inesperado: ' + u);
 };
@@ -40,7 +44,7 @@ const discordUsers = {
   ana: { id: '111111111111111111', username: 'ana_dc', avatar: 'abcdef0123456789' },
   bia: { id: '222222222222222222', username: 'bia_dc', avatar: null },
 };
-const env = { SESSION_SECRET: 'x'.repeat(32), BASE_URL: 'http://localhost', STAFF_PASSWORD: 'EREMITA', DISCORD_CLIENT_SECRET: 'segredo', DATA_DIR: dir };
+const env = { SESSION_SECRET: 'x'.repeat(32), BASE_URL: 'http://localhost', STAFF_PASSWORD: 'EREMITA', DISCORD_CLIENT_SECRET: 'segredo', DISCORD_BOT_TOKEN: 'bot-token', DATA_DIR: dir };
 
 function client(port) {
   let cookie = '';
@@ -97,6 +101,8 @@ async function discordLogin(port, c, code) {
   let me = (await ana.req('GET', '/api/me')).data.user;
   assert.strictEqual(me.name, 'Ana Capitã'); assert.strictEqual(me.discordNick, 'ana_dc'); assert.strictEqual(me.discordLinked, true); assert.strictEqual(me.isAdmin, false); assert.strictEqual(me.robloxName, null);
   assert.match(me.discordAvatar, /^https:\/\/cdn\.discordapp\.com\/avatars\/111111111111111111\/abcdef/); ok('conectar já cria a conta com nome e foto do Discord, sem pedir nicks');
+  assert.strictEqual(me.serverNick, 'Ana Capitã');
+  assert.deepStrictEqual(me.roles, [{ name: 'Capitão', color: '#e74c3c' }, { name: 'Jogador', color: null }]); ok('perfil traz o apelido do servidor e os cargos com cor, do mais alto ao mais baixo');
 
   const forged = client(port); forged.setCookie('mps=' + Buffer.from(JSON.stringify({ uid: me.id, iat: Date.now() })).toString('base64url') + '.assinaturafalsa');
   assert.strictEqual((await forged.req('GET', '/api/me')).data.user, null); ok('cookie adulterado é ignorado');

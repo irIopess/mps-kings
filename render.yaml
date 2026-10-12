@@ -15,6 +15,8 @@ services:
         sync: false        # cole o endereço do site, ex.: https://mps-kings.onrender.com
       - key: DISCORD_CLIENT_SECRET
         sync: false        # cole o Client Secret do Discord
+      - key: DISCORD_BOT_TOKEN
+        sync: false        # opcional: token do bot (aba Bot), para mostrar os cargos
       - key: DISCORD_CLIENT_ID
         value: "1559004196303278140"
     # disk:                # só no plano pago

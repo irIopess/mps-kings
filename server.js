@@ -51,6 +51,7 @@ function createHandler(opts = {}) {
   const DISCORD_ID = String(env.DISCORD_CLIENT_ID || '1559004196303278140').trim();
   const DISCORD_SECRET = String(env.DISCORD_CLIENT_SECRET || '').trim();
   const DISCORD_GUILD = String(env.DISCORD_GUILD_ID || '1531329234105139331').trim();
+  const DISCORD_BOT = String(env.DISCORD_BOT_TOKEN || '').trim(); // opcional: só para ler nome e cor dos cargos
   const DISCORD_ON = !!DISCORD_SECRET;
   const DISCORD_REDIRECT = BASE_URL + '/auth/discord/callback';
   const store = createStore(env.DATA_DIR || path.join(__dirname, 'data'));
@@ -178,6 +179,32 @@ function createHandler(opts = {}) {
     return { robloxNick };
   }
 
+  /* ---------- cargos do servidor (precisa do token do bot, que tem de estar no servidor) ---------- */
+  let rolesCache = { at: 0, tried: 0, map: null };
+  async function loadRoles() {
+    if (!DISCORD_BOT) return;
+    const t = now();
+    if (rolesCache.map && t - rolesCache.at < 600000) return;
+    if (t - rolesCache.tried < 60000) return;
+    rolesCache.tried = t;
+    try {
+      const r = await doFetch('https://discord.com/api/guilds/' + encodeURIComponent(DISCORD_GUILD) + '/roles', { headers: { Authorization: 'Bot ' + DISCORD_BOT }, signal: AbortSignal.timeout(8000) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const arr = await r.json(), map = {};
+      for (const x of Array.isArray(arr) ? arr : []) if (x && /^\d{5,25}$/.test(String(x.id))) map[x.id] = { name: clean(x.name, 60), color: Number(x.color) || 0, position: Number(x.position) || 0 };
+      rolesCache = { at: t, tried: t, map };
+    } catch (e) { console.error('Discord cargos:', e.message); }
+  }
+  function rolesView(u) {
+    const ids = Array.isArray(u.discordRoleIds) ? u.discordRoleIds : [];
+    if (!ids.length) return { roles: [], rolesUnavailable: false };
+    if (!rolesCache.map) return { roles: [], rolesUnavailable: true };
+    const roles = ids.map((id) => rolesCache.map[id] && Object.assign({ id }, rolesCache.map[id])).filter(Boolean)
+      .sort((a, b) => b.position - a.position)
+      .map((r) => ({ name: r.name, color: r.color ? '#' + r.color.toString(16).padStart(6, '0') : null }));
+    return { roles, rolesUnavailable: false };
+  }
+
   /* ---------- usuários ---------- */
   function publicUser(u) {
     return {
@@ -186,6 +213,7 @@ function createHandler(opts = {}) {
       robloxName: u.robloxName || null, robloxId: u.robloxId || null,
       avatar: u.robloxAvatar || null, discordNick: u.discordNick || null,
       discordAvatar: u.discordAvatar || null, discordLinked: !!u.discordId,
+      serverNick: u.discordServerNick || null, ...(u.discordId ? rolesView(u) : { roles: [], rolesUnavailable: false }),
     };
   }
   function author(uid) {
@@ -216,6 +244,7 @@ function createHandler(opts = {}) {
   };
 
   route('GET', '/api/me', async (ctx) => {
+    await loadRoles();
     const u = ctx.session.uid ? db.users[ctx.session.uid] : null;
     if (!u) return send(ctx.res, 200, { user: null, discordLogin: DISCORD_ON });
     if (u.robloxId && (!u.robloxAt || now() - u.robloxAt > 6 * 3600 * 1000)) {
@@ -277,7 +306,7 @@ function createHandler(opts = {}) {
     const [st, sg] = raw ? raw.slice(6).split('.') : [];
     const code = ctx.query.get('code');
     if (!st || !sg || !code || ctx.query.get('state') !== st || sg !== sign('st' + st)) return fail(res, ctx.query.get('error') ? 'negado' : 'state');
-    let du, serverNick = null;
+    let du, serverNick = null, roleIds = [];
     try {
       const tr = await doFetch('https://discord.com/api/oauth2/token', {
         method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -292,7 +321,7 @@ function createHandler(opts = {}) {
       /* apelido da pessoa no servidor (se ela estiver nele); falhar aqui não impede o login */
       try {
         const mr = await doFetch('https://discord.com/api/users/@me/guilds/' + encodeURIComponent(DISCORD_GUILD) + '/member', { headers: { Authorization: 'Bearer ' + tok.access_token }, signal: AbortSignal.timeout(8000) });
-        if (mr.ok) { const m = await mr.json(); serverNick = m && typeof m.nick === 'string' ? clean(m.nick, 40) || null : null; if (!serverNick) console.log('Discord membro: sem apelido definido no servidor'); }
+        if (mr.ok) { const m = await mr.json(); serverNick = m && typeof m.nick === 'string' ? clean(m.nick, 40) || null : null; roleIds = Array.isArray(m && m.roles) ? m.roles.map(String).filter((x) => /^\d{5,25}$/.test(x)).slice(0, 100) : []; if (!serverNick) console.log('Discord membro: sem apelido definido no servidor'); }
         else console.error('Discord membro: HTTP ' + mr.status + ' (scope concedido: ' + String(tok.scope || '?') + ')');
       } catch (e) { /* segue sem o apelido */ }
     } catch (e) { console.error('Discord:', e.message); return fail(res, String(e.message).replace(/[^a-z0-9_]/gi, '_')); }
@@ -301,13 +330,13 @@ function createHandler(opts = {}) {
     const avatar = typeof du.avatar === 'string' && /^[a-f0-9_]{8,64}$/i.test(du.avatar) ? `https://cdn.discordapp.com/avatars/${id}/${du.avatar}.png?size=128` : null;
     const known = Object.values(db.users).find((x) => x.discordId === id);
     if (known) {
-      Object.assign(known, { discordNick: nick, discordAvatar: avatar, discordServerNick: serverNick });
+      Object.assign(known, { discordNick: nick, discordAvatar: avatar, discordServerNick: serverNick, discordRoleIds: roleIds });
       await store.save();
       return send(res, 302, '', { Location: '/', 'Set-Cookie': [sessionCookie({ uid: known.id }), stateCookie('')] });
     }
     if (Object.keys(db.users).length >= MAX_USERS) return fail(res, 'lotado');
     const uid = 'u' + crypto.randomBytes(8).toString('hex'), at = now();
-    db.users[uid] = { id: uid, discordId: id, discordNick: nick, discordServerNick: serverNick, discordAvatar: avatar, isStaff: false, termsVersion: TERMS_VERSION, termsAcceptedAt: at, createdAt: at };
+    db.users[uid] = { id: uid, discordId: id, discordNick: nick, discordServerNick: serverNick, discordRoleIds: roleIds, discordAvatar: avatar, isStaff: false, termsVersion: TERMS_VERSION, termsAcceptedAt: at, createdAt: at };
     await store.save();
     send(res, 302, '', { Location: '/', 'Set-Cookie': [sessionCookie({ uid }), stateCookie('')] });
   });
