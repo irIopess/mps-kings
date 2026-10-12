@@ -437,7 +437,7 @@ function createHandler(opts = {}) {
   const banActive = (b) => !b.liftedAt && (!b.until || b.until > now());
   const banView = (b) => ({
     id: b.id, player: b.player, category: b.category, categoryName: (BAN_CATEGORIES.find((c) => c.id === b.category) || {}).name || 'Outros',
-    reason: b.reason, details: b.details || '', at: b.at, until: b.until || null, by: 'Staff',
+    reason: b.reason, details: b.details || '', bail: b.bail || '', at: b.at, until: b.until || null, by: 'Staff',
   });
   route('GET', '/api/jail', { login: true }, (ctx) => {
     const bans = Object.values(db.bans).filter(banActive).sort((a, b) => b.at - a.at).map(banView);
@@ -445,7 +445,7 @@ function createHandler(opts = {}) {
   });
   route('POST', '/api/jail', { login: true, json: true }, async (ctx) => {
     if (!ctx.isAdmin) return send(ctx.res, 403, { error: 'staff_only' });
-    const player = clean(ctx.body.player, 40), reason = clean(ctx.body.reason, 120), details = clean(ctx.body.details, 2000);
+    const player = clean(ctx.body.player, 40), reason = clean(ctx.body.reason, 120), details = clean(ctx.body.details, 2000), bail = clean(ctx.body.bail, 80);
     const category = BAN_CATEGORIES.some((c) => c.id === ctx.body.category) ? ctx.body.category : null;
     const days = Math.floor(Number(ctx.body.days) || 0);
     if (!player || !reason) return send(ctx.res, 400, { error: 'missing_fields' });
@@ -454,9 +454,17 @@ function createHandler(opts = {}) {
     if (limited('ban:' + ctx.user.id, 30, 60000)) return send(ctx.res, 429, { error: 'rate_limited' });
     if (Object.keys(db.bans).length >= MAX_BANS) return send(ctx.res, 400, { error: 'full' });
     const id = 'b' + crypto.randomBytes(6).toString('hex'), at = now();
-    db.bans[id] = { id, player, category, reason, details, at, until: days ? at + days * 86400000 : null, uid: ctx.user.id };
+    db.bans[id] = { id, player, category, reason, details, bail, at, until: days ? at + days * 86400000 : null, uid: ctx.user.id };
     await store.save();
     send(ctx.res, 201, { ban: banView(db.bans[id]) });
+  });
+  route('POST', '/api/jail/:id/bail', { login: true, json: true }, async (ctx) => {
+    if (!ctx.isAdmin) return send(ctx.res, 403, { error: 'staff_only' });
+    const b = db.bans[ctx.params.id];
+    if (!b || !banActive(b)) return send(ctx.res, 404, { error: 'not_found' });
+    b.bail = clean(ctx.body.bail, 80);
+    await store.save();
+    send(ctx.res, 200, { ban: banView(b) });
   });
   route('POST', '/api/jail/:id/lift', { login: true, json: true }, async (ctx) => {
     if (!ctx.isAdmin) return send(ctx.res, 403, { error: 'staff_only' });

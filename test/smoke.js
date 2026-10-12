@@ -206,6 +206,9 @@ async function discordLogin(port, c, code) {
   assert.strictEqual(perm.data.ban.until, null);
   let jl = (await ana.req('GET', '/api/jail')).data;
   assert.strictEqual(jl.bans.length, 2); assert.ok(jl.categories.length >= 5); ok('só a Staff cria ban; membros veem os ativos com a categoria');
+  assert.strictEqual((await ana.req('POST', '/api/jail/' + perm.data.ban.id + '/bail', { bail: '100 Robux' })).status, 403);
+  assert.strictEqual((await staff.req('POST', '/api/jail/' + perm.data.ban.id + '/bail', { bail: '100 Robux' })).data.ban.bail, '100 Robux');
+  assert.strictEqual((await ana.req('GET', '/api/jail')).data.bans.find((x) => x.player === 'Beltrano').bail, '100 Robux'); ok('Staff define a bail (fiança) e o membro vê');
   assert.strictEqual((await ana.req('POST', '/api/jail/' + jb.data.ban.id + '/lift', {})).status, 403);
   assert.strictEqual((await staff.req('POST', '/api/jail/' + jb.data.ban.id + '/lift', {})).status, 200);
   assert.strictEqual((await ana.req('GET', '/api/jail')).data.bans.length, 1); ok('ban removido sai da lista de ativos');

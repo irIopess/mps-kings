@@ -22,6 +22,7 @@
       <a href="#profile" data-go="profile" id="nav-profile">My Profile</a>
       <a href="#support" data-go="support" id="nav-support">Support<span class="badge" id="nav-badge" hidden></span></a>
       <a href="#announcements" data-go="announcements" id="nav-announcements">Anúncios<span class="badge" id="nav-ann-badge" hidden></span></a>
+      <a href="#donations" data-go="donations" id="nav-donations">Doações</a>
       <a href="#mps" id="nav-mps" aria-expanded="false" aria-controls="subnav">MPS<svg class="i xs caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></a>
       <a href="https://linktr.ee/MPSKings" target="_blank" rel="noopener noreferrer" id="nav-links">Links
         <svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>
@@ -99,6 +100,17 @@
       <div class="ann-list" id="ann-list"></div>
     </section>
 
+    <section id="view-donations" hidden>
+      <div class="sup-head"><div><h1>Doações</h1><p>Escolha um valor para apoiar a MPS Kings. Você será levado ao Roblox.</p></div></div>
+      <div class="donate-grid">
+        <a class="donate" href="https://www.roblox.com" target="_blank" rel="noopener noreferrer"><strong>25</strong><span>Robux</span></a>
+        <a class="donate" href="https://www.roblox.com" target="_blank" rel="noopener noreferrer"><strong>50</strong><span>Robux</span></a>
+        <a class="donate" href="https://www.roblox.com" target="_blank" rel="noopener noreferrer"><strong>100</strong><span>Robux</span></a>
+        <a class="donate" href="https://www.roblox.com" target="_blank" rel="noopener noreferrer"><strong>200</strong><span>Robux</span></a>
+        <a class="donate" href="https://www.roblox.com" target="_blank" rel="noopener noreferrer"><strong>500</strong><span>Robux</span></a>
+      </div>
+    </section>
+
     <section id="view-roles" hidden>
       <div class="sup-head"><div><h1>Roles</h1></div></div>
       <div id="roles-list"></div>
@@ -142,6 +154,7 @@
           <div class="field"><label for="jail-cat">Categoria</label><select id="jail-cat"></select></div>
           <div class="field"><label for="jail-reason">Motivo (resumo)</label><input id="jail-reason" maxlength="120" autocomplete="off"></div>
           <div class="field"><label for="jail-details">Detalhes</label><textarea id="jail-details" rows="4" maxlength="2000"></textarea></div>
+          <div class="field"><label for="jail-bail">Bail / fiança (opcional)</label><input id="jail-bail" maxlength="80" autocomplete="off" placeholder="Ex.: 100 Robux"></div>
           <div class="field"><label for="jail-days">Duração em dias (0 = permanente)</label><input id="jail-days" type="number" min="0" max="3650" value="0"></div>
           <p class="phint err" id="jail-err" role="alert"></p>
           <div class="actions"><button class="btn primary" id="jail-send" type="submit">Aplicar ban</button></div>

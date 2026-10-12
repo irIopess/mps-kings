@@ -370,3 +370,11 @@ input:focus, textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc
 .setup-card select{width:100%}
 @media (prefers-reduced-motion:reduce){.subnav,.ban-body,.rgroup,.ban{transition:none;animation:none}}
 .ricon{display:inline-flex}.ricon svg.i{width:22px;height:22px}
+.donate-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.donate{display:flex;flex-direction:column;align-items:center;gap:2px;padding:22px 12px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:inherit;text-decoration:none;transition:transform .25s var(--spring,ease),background .2s,border-color .2s}
+.donate:hover{transform:translateY(-4px);background:rgba(255,255,255,.08);border-color:var(--accent,#f5f5f6)}
+.donate:active{transform:scale(.97)}
+.donate strong{font-size:32px;font-family:Archivo,sans-serif;font-weight:900}
+.donate span{opacity:.65;font-size:13px}
+.bail-row{display:flex;gap:8px;margin:10px 0}.bail-in{flex:1;min-width:0;padding:8px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:var(--bg,#0b0b0c)}
+@media (max-width:1240px){.nav a{padding:9px 11px}}

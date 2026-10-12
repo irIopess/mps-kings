@@ -109,7 +109,7 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(movePill);
 
   /* ---------- telas ---------- */
-  var VIEWS = ['home', 'profile', 'support', 'announcements', 'roles', 'jail', 'setup'];
+  var VIEWS = ['home', 'profile', 'support', 'announcements', 'donations', 'roles', 'jail', 'setup'];
   var current = 'home', lastShown = '';
   var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   function show(v) {
@@ -370,7 +370,16 @@
     var det = h('div', { class: 'ban-det' },
       h('p', { text: b.details || 'Sem detalhes adicionais.' }),
       h('dl', {}, h('dt', { text: 'Banido por' }), h('dd', { text: b.by }), h('dt', { text: 'Data' }), h('dd', { text: fmt(b.at) }),
-        h('dt', { text: 'Duração' }), h('dd', { text: until })));
+        h('dt', { text: 'Duração' }), h('dd', { text: until }),
+        b.bail ? h('dt', { text: 'Bail' }) : null, b.bail ? h('dd', { text: b.bail }) : null));
+    if (staff) {
+      var bi = h('input', { class: 'bail-in', maxlength: 80, placeholder: 'Bail / fiança (ex.: 100 Robux)', 'aria-label': 'Bail' });
+      bi.value = b.bail || '';
+      det.append(h('div', { class: 'bail-row' }, bi, h('button', { class: 'btn small', type: 'button', text: 'Salvar bail', onclick: function () {
+        api('/api/jail/' + b.id + '/bail', { method: 'POST', body: { bail: bi.value.trim() } }).then(function () { toast('Bail salva.'); return loadJail(); })
+          .catch(function (e) { toast(errText(e)); });
+      } })));
+    }
     if (staff) det.append(h('button', { class: 'btn small del', type: 'button', text: 'Remover ban', onclick: function () {
       api('/api/jail/' + b.id + '/lift', { method: 'POST', body: {} }).then(function () { toast('Ban removido.'); return loadJail(); })
         .catch(function (e) { toast(errText(e)); });
@@ -675,8 +684,8 @@
       var pl = $('#jail-player').value.trim(), rs = $('#jail-reason').value.trim(), err = $('#jail-err');
       if (!pl || !rs) { err.textContent = errText({ code: 'missing_fields' }); return; }
       S.sending = true; $('#jail-send').disabled = true; err.textContent = '';
-      api('/api/jail', { method: 'POST', body: { player: pl, category: $('#jail-cat').value, reason: rs, details: $('#jail-details').value.trim(), days: Number($('#jail-days').value) || 0 } }).then(function () {
-        $('#jail-player').value = ''; $('#jail-reason').value = ''; $('#jail-details').value = ''; $('#jail-days').value = '0';
+      api('/api/jail', { method: 'POST', body: { player: pl, category: $('#jail-cat').value, reason: rs, details: $('#jail-details').value.trim(), bail: $('#jail-bail').value.trim(), days: Number($('#jail-days').value) || 0 } }).then(function () {
+        $('#jail-player').value = ''; $('#jail-reason').value = ''; $('#jail-details').value = ''; $('#jail-bail').value = ''; $('#jail-days').value = '0';
         toast('Ban aplicado.'); S.jailSig = ''; return loadJail();
       }).catch(function (e) { err.textContent = errText(e); })
         .then(function () { S.sending = false; $('#jail-send').disabled = false; });
