@@ -42,7 +42,7 @@ function remoteStore(env, doFetch) {
 function createStore(dir, extra = {}) {
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, 'db.json');
-  let db = { users: {}, tickets: {}, messages: {}, announcements: {} };
+  let db = { users: {}, tickets: {}, messages: {}, announcements: {}, bans: {} };
   if (extra.initialDb) {
     db = Object.assign(db, extra.initialDb);
   } else {
@@ -217,7 +217,7 @@ function createHandler(opts = {}) {
       const r = await doFetch('https://discord.com/api/guilds/' + encodeURIComponent(DISCORD_GUILD) + '/roles', { headers: { Authorization: 'Bot ' + DISCORD_BOT }, signal: AbortSignal.timeout(8000) });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const arr = await r.json(), map = {};
-      for (const x of Array.isArray(arr) ? arr : []) if (x && /^\d{5,25}$/.test(String(x.id))) map[x.id] = { name: clean(x.name, 60), color: Number(x.color) || 0, position: Number(x.position) || 0 };
+      for (const x of Array.isArray(arr) ? arr : []) if (x && /^\d{5,25}$/.test(String(x.id))) map[x.id] = { name: clean(x.name, 60), color: Number(x.color) || 0, position: Number(x.position) || 0, managed: !!x.managed };
       rolesCache = { at: t, tried: t, map };
     } catch (e) { console.error('Discord cargos:', e.message); }
   }
@@ -366,6 +366,96 @@ function createHandler(opts = {}) {
     db.users[uid] = { id: uid, discordId: id, discordNick: nick, discordServerNick: serverNick, discordRoleIds: roleIds, discordAvatar: avatar, isStaff: false, termsVersion: TERMS_VERSION, termsAcceptedAt: at, createdAt: at };
     await store.save();
     send(res, 302, '', { Location: '/', 'Set-Cookie': [sessionCookie({ uid }), stateCookie('')] });
+  });
+
+  /* ---------- MPS > Roles: jogadores de cada cargo, do mais alto ao mais baixo, sem bots ---------- */
+  let membersCache = { at: 0, view: null };
+  const avatarUrl = (gid, uid, hash, inGuild) => (typeof hash === 'string' && /^[a-f0-9_]{8,64}$/i.test(hash))
+    ? 'https://cdn.discordapp.com/' + (inGuild ? 'guilds/' + gid + '/users/' + uid + '/avatars/' : 'avatars/' + uid + '/') + hash + '.png?size=64' : null;
+  async function loadMembers() {
+    if (!DISCORD_BOT) { const e = new Error('sem_bot'); e.code = 'sem_bot'; throw e; }
+    rolesCache.at = 0; rolesCache.tried = 0;
+    await loadRoles();
+    if (!rolesCache.map) throw new Error('cargos_indisponiveis');
+    const members = [];
+    let after = '0';
+    for (let page = 0; page < 10; page++) {
+      const r = await doFetch('https://discord.com/api/guilds/' + encodeURIComponent(DISCORD_GUILD) + '/members?limit=1000&after=' + after, { headers: { Authorization: 'Bot ' + DISCORD_BOT }, signal: AbortSignal.timeout(15000) });
+      if (!r.ok) throw new Error('HTTP_' + r.status);
+      const arr = await r.json();
+      if (!Array.isArray(arr)) throw new Error('resposta_invalida');
+      members.push(...arr);
+      if (arr.length < 1000) break;
+      after = String(arr[arr.length - 1].user.id);
+    }
+    const humans = members.filter((m) => m && m.user && !m.user.bot && /^\d{5,25}$/.test(String(m.user.id)));
+    const roles = Object.keys(rolesCache.map).filter((id) => id !== DISCORD_GUILD && !rolesCache.map[id].managed)
+      .map((id) => Object.assign({ id }, rolesCache.map[id])).sort((a, b) => b.position - a.position);
+    const out = [];
+    for (const r of roles) {
+      const list = humans.filter((m) => Array.isArray(m.roles) && m.roles.includes(r.id)).map((m) => ({
+        name: clean(m.nick || m.user.global_name || m.user.username, 40),
+        avatar: avatarUrl(DISCORD_GUILD, m.user.id, m.avatar, true) || avatarUrl(DISCORD_GUILD, m.user.id, m.user.avatar, false),
+      })).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
+      if (list.length) out.push({ name: r.name, color: r.color ? '#' + r.color.toString(16).padStart(6, '0') : null, members: list });
+    }
+    return { roles: out, total: humans.length };
+  }
+  route('GET', '/api/mps/roles', { login: true }, async (ctx) => {
+    try {
+      if (!membersCache.view || now() - membersCache.at > 300000) membersCache = { at: now(), view: await loadMembers() };
+      send(ctx.res, 200, membersCache.view);
+    } catch (e) {
+      console.error('Discord membros:', e.message);
+      if (membersCache.view) return send(ctx.res, 200, membersCache.view);
+      send(ctx.res, 200, { unavailable: true, reason: ctx.isAdmin ? String(e.message).slice(0, 60) : undefined });
+    }
+  });
+
+  /* ---------- MPS > Jail: banimentos ativos ---------- */
+  const BAN_CATEGORIES = [
+    { id: 'exploit', name: 'Exploit / Trapaça' },
+    { id: 'toxicidade', name: 'Toxicidade / Ofensas' },
+    { id: 'staff', name: 'Desrespeito à Staff' },
+    { id: 'spam', name: 'Spam / Flood' },
+    { id: 'conta', name: 'Conta falsa / Alt' },
+    { id: 'golpe', name: 'Golpe / Scam' },
+    { id: 'conteudo', name: 'Conteúdo impróprio' },
+    { id: 'regras', name: 'Quebra de regras' },
+    { id: 'outros', name: 'Outros' },
+  ];
+  const MAX_BANS = 2000;
+  const banActive = (b) => !b.liftedAt && (!b.until || b.until > now());
+  const banView = (b) => ({
+    id: b.id, player: b.player, category: b.category, categoryName: (BAN_CATEGORIES.find((c) => c.id === b.category) || {}).name || 'Outros',
+    reason: b.reason, details: b.details || '', at: b.at, until: b.until || null, by: 'Staff',
+  });
+  route('GET', '/api/jail', { login: true }, (ctx) => {
+    const bans = Object.values(db.bans).filter(banActive).sort((a, b) => b.at - a.at).map(banView);
+    send(ctx.res, 200, { categories: BAN_CATEGORIES, bans });
+  });
+  route('POST', '/api/jail', { login: true, json: true }, async (ctx) => {
+    if (!ctx.isAdmin) return send(ctx.res, 403, { error: 'staff_only' });
+    const player = clean(ctx.body.player, 40), reason = clean(ctx.body.reason, 120), details = clean(ctx.body.details, 2000);
+    const category = BAN_CATEGORIES.some((c) => c.id === ctx.body.category) ? ctx.body.category : null;
+    const days = Math.floor(Number(ctx.body.days) || 0);
+    if (!player || !reason) return send(ctx.res, 400, { error: 'missing_fields' });
+    if (!category) return send(ctx.res, 400, { error: 'invalid_category' });
+    if (days < 0 || days > 3650) return send(ctx.res, 400, { error: 'invalid_days' });
+    if (limited('ban:' + ctx.user.id, 30, 60000)) return send(ctx.res, 429, { error: 'rate_limited' });
+    if (Object.keys(db.bans).length >= MAX_BANS) return send(ctx.res, 400, { error: 'full' });
+    const id = 'b' + crypto.randomBytes(6).toString('hex'), at = now();
+    db.bans[id] = { id, player, category, reason, details, at, until: days ? at + days * 86400000 : null, uid: ctx.user.id };
+    await store.save();
+    send(ctx.res, 201, { ban: banView(db.bans[id]) });
+  });
+  route('POST', '/api/jail/:id/lift', { login: true, json: true }, async (ctx) => {
+    if (!ctx.isAdmin) return send(ctx.res, 403, { error: 'staff_only' });
+    const b = db.bans[ctx.params.id];
+    if (!b) return send(ctx.res, 404, { error: 'not_found' });
+    b.liftedAt = now();
+    await store.save();
+    send(ctx.res, 200, { ok: true });
   });
 
   /* ---------- tema de cores (cada pessoa escolhe o seu) ---------- */

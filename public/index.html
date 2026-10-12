@@ -22,6 +22,7 @@
       <a href="#profile" data-go="profile" id="nav-profile">My Profile</a>
       <a href="#support" data-go="support" id="nav-support">Support<span class="badge" id="nav-badge" hidden></span></a>
       <a href="#announcements" data-go="announcements" id="nav-announcements">Anúncios<span class="badge" id="nav-ann-badge" hidden></span></a>
+      <a href="#mps" id="nav-mps" aria-expanded="false" aria-controls="subnav">MPS<svg class="i xs caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></a>
       <a href="https://linktr.ee/MPSKings" target="_blank" rel="noopener noreferrer" id="nav-links">Links
         <svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>
       </a>
@@ -37,6 +38,11 @@
       </div>
     </div>
   </header>
+  <div class="subnav" id="subnav"><div class="subnav-in"><nav aria-label="MPS">
+    <a href="#roles" data-go="roles" id="nav-roles">Roles</a>
+    <a href="https://docs.google.com/spreadsheets/d/1ng9RM8iNGtdIM6gKthpYxj6YGoOV8S3s71EuQV0_ITE/edit?usp=sharing" target="_blank" rel="noopener noreferrer">Spreadsheet<svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a>
+    <a href="#jail" data-go="jail" id="nav-jail">Jail</a>
+  </nav></div></div>
 
   <main>
     <section id="view-login" class="login" hidden>
@@ -93,13 +99,28 @@
       <div class="ann-list" id="ann-list"></div>
     </section>
 
+    <section id="view-roles" hidden>
+      <div class="sup-head"><div><h1>Roles</h1><p>Players de cada cargo, do maior ao menor.</p></div></div>
+      <div id="roles-list"></div>
+    </section>
+
+    <section id="view-jail" hidden>
+      <div class="sup-head"><div><h1>Jail</h1><p>Banimentos ativos. Clique em um para ver mais informações.</p></div></div>
+      <div class="jail-list" id="jail-list"></div>
+    </section>
+
     <section id="view-setup" hidden>
       <div class="sup-head">
         <div>
           <h1>Staff Setup</h1>
-          <p>Publique anúncios para todos os membros.</p>
+          <p>Publique anúncios e gerencie banimentos.</p>
         </div>
       </div>
+      <div class="tabs" role="tablist">
+        <button class="tab" type="button" role="tab" data-tab="ann" aria-selected="true">Anúncios</button>
+        <button class="tab" type="button" role="tab" data-tab="jail" aria-selected="false">Jail</button>
+      </div>
+      <div id="tab-ann">
       <form class="setup-card" id="ann-form" novalidate>
         <div class="field">
           <label for="ann-title">Título</label>
@@ -114,6 +135,20 @@
       </form>
       <h2 class="sub-h">Publicados</h2>
       <div class="ann-list" id="setup-list"></div>
+      </div>
+      <div id="tab-jail" hidden>
+        <form class="setup-card" id="jail-form" novalidate>
+          <div class="field"><label for="jail-player">Player</label><input id="jail-player" maxlength="40" autocomplete="off"></div>
+          <div class="field"><label for="jail-cat">Categoria</label><select id="jail-cat"></select></div>
+          <div class="field"><label for="jail-reason">Motivo (resumo)</label><input id="jail-reason" maxlength="120" autocomplete="off"></div>
+          <div class="field"><label for="jail-details">Detalhes</label><textarea id="jail-details" rows="4" maxlength="2000"></textarea></div>
+          <div class="field"><label for="jail-days">Duração em dias (0 = permanente)</label><input id="jail-days" type="number" min="0" max="3650" value="0"></div>
+          <p class="phint err" id="jail-err" role="alert"></p>
+          <div class="actions"><button class="btn primary" id="jail-send" type="submit">Aplicar ban</button></div>
+        </form>
+        <h2 class="sub-h">Bans ativos</h2>
+        <div class="jail-list" id="jail-setup-list"></div>
+      </div>
     </section>
 
     <section id="view-support" hidden>

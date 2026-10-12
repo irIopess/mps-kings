@@ -76,6 +76,8 @@
       case 'wrong_password': return 'Senha incorreta.';
       case 'staff_only': return 'Só a Staff pode fazer isso.';
       case 'ticket_closed': return 'Este ticket está fechado. Só a Staff pode responder nele.';
+      case 'invalid_category': return 'Escolha uma categoria válida.';
+      case 'invalid_days': return 'A duração deve ser de 0 a 3650 dias.';
       case 'invalid_theme': return 'Essa cor não existe.';
       case 'staff_disabled': return 'O acesso da Staff não está configurado neste servidor.';
       case 'full': return 'O site está lotado no momento. Tente mais tarde.';
@@ -84,7 +86,7 @@
   }
   function resetData() {
     S.tickets = []; S.ticketsSig = ''; S.loaded = false; S.loadedOnce = false;
-    S.selected = null; S.composing = false; S.cur = null; S.msgs = []; S.sig = ''; S.editProfile = false; S.seenRows = {}; S.seenMsgs = {}; S.ann = []; S.annUnread = 0; S.annAt = 0; S.annMarkFrom = null; S.annSeen = {};
+    S.selected = null; S.composing = false; S.cur = null; S.msgs = []; S.sig = ''; S.editProfile = false; S.seenRows = {}; S.seenMsgs = {}; S.ann = []; S.jail = null; S.roles = null; S.annUnread = 0; S.annAt = 0; S.annMarkFrom = null; S.annSeen = {};
   }
   function authLost() {
     S.me = null; resetData();
@@ -107,7 +109,7 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(movePill);
 
   /* ---------- telas ---------- */
-  var VIEWS = ['home', 'profile', 'support', 'announcements', 'setup'];
+  var VIEWS = ['home', 'profile', 'support', 'announcements', 'roles', 'jail', 'setup'];
   var current = 'home', lastShown = '';
   var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   function show(v) {
@@ -131,14 +133,28 @@
       if (!a) return;
       if (n === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
+    var inMps = v === 'roles' || v === 'jail';
+    var mp = $('#nav-mps');
+    if (inMps && !guest) mp.setAttribute('aria-current', 'page'); else mp.removeAttribute('aria-current');
+    if (inMps && !guest) setSub(true);
+    if (guest) setSub(false);
     if (guest || !S.ready) return;
     movePill();
+    if (v === 'roles') loadRoles();
+    if (v === 'jail' || v === 'setup') loadJail();
     if (v !== 'announcements') S.annMarkFrom = null;
     if (v === 'profile') renderProfile();
     if (v === 'announcements' || v === 'setup') { renderAnn(); loadAnn(true); }
     if (v === 'support') { renderSupport(); loadTickets(); }
   }
+  function setSub(open) {
+    $('#subnav').classList.toggle('open', open);
+    $('#nav-mps').setAttribute('aria-expanded', open ? 'true' : 'false');
+    $('#subnav').toggleAttribute('inert', !open);
+  }
   document.addEventListener('click', function (ev) {
+    var m = ev.target.closest && ev.target.closest('#nav-mps');
+    if (m) { ev.preventDefault(); setSub(!$('#subnav').classList.contains('open')); return; }
     var a = ev.target.closest && ev.target.closest('[data-go]');
     if (!a) return;
     ev.preventDefault();
@@ -289,6 +305,84 @@
       if (changed || current === 'announcements') { if (current === 'announcements' || current === 'setup') renderAnn(); }
       renderChrome();
     }).catch(function () {});
+  }
+
+
+  /* ---------- MPS: roles ---------- */
+  function loadRoles() {
+    if (!S.me) return Promise.resolve();
+    if (S.roles && Date.now() - S.rolesAt < 30000) { renderRoles(); return Promise.resolve(); }
+    S.rolesAt = Date.now();
+    return api('/api/mps/roles').then(function (r) { S.roles = r; renderRoles(); })
+      .catch(function () { S.roles = { unavailable: true }; renderRoles(); });
+  }
+  function renderRoles() {
+    var box = $('#roles-list'), r = S.roles;
+    box.replaceChildren();
+    if (!r) { box.append(h('div', { class: 'ann-empty', text: 'Carregando…' })); return; }
+    if (r.unavailable) {
+      box.append(h('div', { class: 'ann-empty', text: 'A lista de roles não está disponível agora.' + (r.reason ? ' (' + r.reason + ')' : '') }));
+      return;
+    }
+    r.roles.forEach(function (ro, i) {
+      var dot = h('span', { class: 'rdot' }); if (ro.color) dot.style.background = ro.color;
+      var chips = h('div', { class: 'pchips' });
+      ro.members.forEach(function (m) {
+        var img = h('img', { alt: '', width: 22, height: 22, loading: 'lazy', referrerpolicy: 'no-referrer' });
+        img.src = m.avatar || letterAvatar(m.name);
+        img.addEventListener('error', function () { img.src = letterAvatar(m.name); }, { once: true });
+        chips.append(h('span', { class: 'pchip' }, img, h('span', { text: m.name })));
+      });
+      if (!ro.members.length) chips.append(h('span', { class: 'muted', text: 'Ninguém' }));
+      var sec = h('section', { class: 'rgroup' }, h('h3', {}, dot, h('span', { text: ro.name }), h('span', { class: 'cnt', text: String(ro.members.length) })), chips);
+      sec.style.setProperty('--i', Math.min(i, 12));
+      box.append(sec);
+    });
+    if (!r.roles.length) box.append(h('div', { class: 'ann-empty', text: 'Nenhum role encontrado.' }));
+  }
+
+  /* ---------- MPS: jail ---------- */
+  var dayFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  function loadJail() {
+    if (!S.me) return Promise.resolve();
+    return api('/api/jail').then(function (r) {
+      var sig = JSON.stringify(r);
+      if (sig === S.jailSig) return;
+      S.jailSig = sig; S.jail = r; renderJail();
+    }).catch(function () {});
+  }
+  function banCard(b, staff) {
+    var until = b.until ? 'Até ' + dayFmt.format(new Date(b.until)) : 'Permanente';
+    var det = h('div', { class: 'ban-det' },
+      h('p', { text: b.details || 'Sem detalhes adicionais.' }),
+      h('dl', {}, h('dt', { text: 'Banido por' }), h('dd', { text: b.by }), h('dt', { text: 'Data' }), h('dd', { text: fmt(b.at) }),
+        h('dt', { text: 'Duração' }), h('dd', { text: until })));
+    if (staff) det.append(h('button', { class: 'btn small del', type: 'button', text: 'Remover ban', onclick: function () {
+      api('/api/jail/' + b.id + '/lift', { method: 'POST', body: {} }).then(function () { toast('Ban removido.'); return loadJail(); })
+        .catch(function (e) { toast(errText(e)); });
+    } }));
+    var head = h('button', { class: 'ban-head', type: 'button', 'aria-expanded': 'false' },
+      h('span', { class: 'ban-pl', text: b.player }), h('span', { class: 'cat-pill', text: b.categoryName }),
+      h('span', { class: 'ban-rs', text: b.reason }), h('span', { class: 'ban-dt', text: until }));
+    var card = h('article', { class: 'ban' }, head, h('div', { class: 'ban-body' }, det));
+    head.addEventListener('click', function () {
+      var o = card.classList.toggle('open'); head.setAttribute('aria-expanded', o ? 'true' : 'false');
+    });
+    return card;
+  }
+  function renderJail() {
+    var j = S.jail; if (!j) return;
+    var staff = !!(S.me && S.me.isAdmin);
+    var box = $('#jail-list'), sb = $('#jail-setup-list');
+    box.replaceChildren(); sb.replaceChildren();
+    if (!j.bans.length) { box.append(h('div', { class: 'ann-empty', text: 'Nenhum ban ativo.' })); sb.append(h('div', { class: 'ann-empty', text: 'Nenhum ban ativo.' })); }
+    j.bans.forEach(function (b) { box.append(banCard(b, false)); sb.append(banCard(b, staff)); });
+    var sel = $('#jail-cat'), keep = sel.value;
+    if (sel.options.length !== j.categories.length) {
+      sel.replaceChildren();
+      j.categories.forEach(function (c) { sel.append(h('option', { value: c.id, text: c.name })); });
+      if (keep) sel.value = keep;
+    }
   }
 
   /* ---------- cores do site ---------- */
@@ -561,6 +655,25 @@
       }).catch(function (e) { err.textContent = errText(e); })
         .then(function () { S.sending = false; $('#ann-send').disabled = false; });
     });
+    $('#jail-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      if (S.sending) return;
+      var pl = $('#jail-player').value.trim(), rs = $('#jail-reason').value.trim(), err = $('#jail-err');
+      if (!pl || !rs) { err.textContent = errText({ code: 'missing_fields' }); return; }
+      S.sending = true; $('#jail-send').disabled = true; err.textContent = '';
+      api('/api/jail', { method: 'POST', body: { player: pl, category: $('#jail-cat').value, reason: rs, details: $('#jail-details').value.trim(), days: Number($('#jail-days').value) || 0 } }).then(function () {
+        $('#jail-player').value = ''; $('#jail-reason').value = ''; $('#jail-details').value = ''; $('#jail-days').value = '0';
+        toast('Ban aplicado.'); S.jailSig = ''; return loadJail();
+      }).catch(function (e) { err.textContent = errText(e); })
+        .then(function () { S.sending = false; $('#jail-send').disabled = false; });
+    });
+    document.querySelectorAll('.tab').forEach(function (t) {
+      t.addEventListener('click', function () {
+        var k = t.getAttribute('data-tab');
+        document.querySelectorAll('.tab').forEach(function (x) { x.setAttribute('aria-selected', x === t ? 'true' : 'false'); });
+        $('#tab-ann').hidden = k !== 'ann'; $('#tab-jail').hidden = k !== 'jail';
+      });
+    });
     $('#btn-logout').addEventListener('click', function () {
       api('/api/logout', { method: 'POST', body: {} }).catch(function () {}).then(function () {
         current = 'home'; authLost();
@@ -572,7 +685,7 @@
   /* ---------- início ---------- */
   function boot() {
     try { applyTheme(localStorage.getItem('mps-theme') || 'padrao', false); } catch (e) {}
-    bind();
+    bind(); setSub(false);
     show(initialView());
     var q = location.search;
     if (q) { try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {} }

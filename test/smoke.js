@@ -38,6 +38,15 @@ const fakeFetch = async (url, init = {}) => {
     assert.strictEqual(init.headers.Authorization, 'Bot bot-token');
     return json([{ id: '1531329234105139331', name: '@everyone', color: 0, position: 0 }, { id: '900000000000000001', name: 'Capitão', color: 0xe74c3c, position: 5 }, { id: '900000000000000002', name: 'Jogador', color: 0, position: 1 }]);
   }
+  if (u.startsWith('https://discord.com/api/guilds/1531329234105139331/members?')) {
+    assert.strictEqual(init.headers.Authorization, 'Bot bot-token');
+    return json([
+      { user: { id: '111111111111111111', username: 'ana_dc', avatar: 'abcdef0123456789' }, nick: 'Ana Capitã', roles: ['900000000000000002', '900000000000000001'] },
+      { user: { id: '333333333333333333', username: 'ze', avatar: null }, nick: 'zé', roles: ['900000000000000001', '900000000000000002'] },
+      { user: { id: '444444444444444444', username: 'carlos', avatar: null }, nick: null, roles: ['900000000000000002'] },
+      { user: { id: '555555555555555555', username: 'RoboBot', bot: true }, roles: ['900000000000000001'] },
+    ]);
+  }
   throw new Error('fetch inesperado: ' + u);
 };
 const discordUsers = {
@@ -185,6 +194,32 @@ async function discordLogin(port, c, code) {
   assert.strictEqual((await ana.req('POST', '/api/theme', { theme: 'rosa-choque' })).status, 400);
   assert.strictEqual((await ana.req('POST', '/api/theme', { theme: 'azul' })).data.user.theme, 'azul');
   assert.strictEqual((await ana.req('GET', '/api/me')).data.user.theme, 'azul'); ok('cada pessoa guarda o tema de cores escolhido');
+
+  /* Jail */
+  assert.strictEqual((await anon.req('GET', '/api/jail')).status, 401);
+  assert.strictEqual((await ana.req('POST', '/api/jail', { player: 'x', category: 'spam', reason: 'y' })).status, 403);
+  assert.strictEqual((await staff.req('POST', '/api/jail', { player: 'Fulano', category: 'inexistente', reason: 'y' })).data.error, 'invalid_category');
+  assert.strictEqual((await staff.req('POST', '/api/jail', { player: '', category: 'spam', reason: 'y' })).data.error, 'missing_fields');
+  const jb = await staff.req('POST', '/api/jail', { player: 'Fulano', category: 'exploit', reason: 'Usou exploit', details: 'Visto em partida', days: 7 });
+  assert.strictEqual(jb.status, 201); assert.strictEqual(jb.data.ban.categoryName, 'Exploit / Trapaça'); assert.ok(jb.data.ban.until > Date.now());
+  const perm = await staff.req('POST', '/api/jail', { player: 'Beltrano', category: 'staff', reason: 'Ofendeu a Staff' });
+  assert.strictEqual(perm.data.ban.until, null);
+  let jl = (await ana.req('GET', '/api/jail')).data;
+  assert.strictEqual(jl.bans.length, 2); assert.ok(jl.categories.length >= 5); ok('só a Staff cria ban; membros veem os ativos com a categoria');
+  assert.strictEqual((await ana.req('POST', '/api/jail/' + jb.data.ban.id + '/lift', {})).status, 403);
+  assert.strictEqual((await staff.req('POST', '/api/jail/' + jb.data.ban.id + '/lift', {})).status, 200);
+  assert.strictEqual((await ana.req('GET', '/api/jail')).data.bans.length, 1); ok('ban removido sai da lista de ativos');
+
+  /* Roles: sem bot a lista fica indisponível; com bot agrupa por cargo e ignora bots */
+  assert.strictEqual((await ana.req('GET', '/api/mps/roles')).data.roles.length, 2);
+  const rl = (await ana.req('GET', '/api/mps/roles')).data;
+  assert.deepStrictEqual(rl.roles.map((r) => r.name), ['Capitão', 'Jogador']);
+  assert.deepStrictEqual(rl.roles[0].members.map((m) => m.name), ['Ana Capitã', 'zé']);
+  assert.ok(!JSON.stringify(rl).includes('RoboBot')); assert.strictEqual(rl.total, 3); ok('Roles: do cargo mais alto ao mais baixo, sem bots');
+  const nb = http.createServer(createHandler({ env: Object.assign({}, env, { DISCORD_BOT_TOKEN: '', DATA_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'mps-')) }), fetch: fakeFetch }));
+  await new Promise((r) => nb.listen(0, '127.0.0.1', r));
+  const nbc = client(nb.address().port); await nbc.req('POST', '/api/staff', { password: 'EREMITA' });
+  assert.strictEqual((await nbc.req('GET', '/api/mps/roles')).data.unavailable, true); nb.close(); ok('Roles sem bot: aviso de indisponível');
 
   const html = await anon.req('GET', '/');
   assert.strictEqual(html.status, 200); assert.match(html.data, /MPS Kings/); assert.match(html.data, /Conectar com Discord/); assert.ok(!/Pr[ée]via/.test(html.data));
