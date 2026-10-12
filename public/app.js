@@ -248,15 +248,9 @@
         h('div', { class: 'prow' }, h('span', { class: 'plabel', text: 'Discord' }),
           h('p', { class: 'pvalue', text: me.discordNick }),
           me.discordLinked ? h('span', { class: 'pid', text: 'Nick (usuário) da conta conectada' }) : null),
-        me.discordLinked ? h('div', { class: 'prow' }, h('span', { class: 'plabel', text: 'Apelido no servidor' }),
+        me.discordLinked ? h('div', { class: 'prow' }, h('span', { class: 'plabel', text: 'Roblox Account' }),
           h('p', { class: 'pvalue', text: me.serverNick || 'Sem apelido no servidor' })) : null,
-        me.discordLinked ? rolesBlock(me) : null,
-        h('div', { class: 'prow' }, h('span', { class: 'plabel', text: 'Roblox' }),
-          h('p', { class: 'pvalue', text: me.robloxName || 'Não informado' }),
-          me.robloxId ? h('span', { class: 'pid', text: 'ID do Roblox · ' + me.robloxId }) : null),
-        h('div', { class: 'prow' }, h('button', { class: 'linkbtn left', type: 'button', text: me.robloxName ? 'Trocar Roblox' : 'Adicionar nick do Roblox', onclick: function () {
-          S.editProfile = true; renderProfile(); var i = $('#edit-roblox'); if (i) i.focus();
-        } })));
+        me.discordLinked ? rolesBlock(me) : null);
     }
     box.append(h('div', { class: 'profile-card' }, photo, info));
   }
@@ -320,7 +314,7 @@
     var ids = $('#th-ids'), a = t.author;
     ids.hidden = !S.me.isAdmin;
     if (S.me.isAdmin) {
-      var rbNick = t.robloxNick || a.robloxName;
+      var rbNick = t.robloxNick || a.robloxName || a.serverNick;
       var sameRb = a.robloxId && a.robloxName && rbNick && rbNick.toLowerCase() === String(a.robloxName).toLowerCase();
       ids.textContent = 'Roblox ' + (rbNick || 'não informado') + (sameRb ? ' · ID ' + a.robloxId : '') +
         '  |  Discord ' + (t.discordNick || a.discordNick || 'não informado');

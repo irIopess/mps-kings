@@ -222,6 +222,7 @@ function createHandler(opts = {}) {
     return {
       id: u.id, name: u.isStaff ? 'Equipe' : (u.discordId ? (u.discordServerNick || u.discordNick) : u.robloxName), avatar: u.discordAvatar || u.robloxAvatar || null,
       robloxName: u.robloxName || null, robloxId: u.robloxId || null, discordNick: u.discordNick || null,
+      serverNick: u.discordServerNick || null,
     };
   }
 
