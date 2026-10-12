@@ -85,9 +85,9 @@ async function discordLogin(port, c, code) {
   assert.strictEqual(loc.searchParams.get('redirect_uri'), 'http://localhost/auth/discord/callback'); ok('botão manda para o Discord com o client_id e o redirect do site');
   assert.strictEqual((await fetch('http://127.0.0.1:' + port + '/auth/discord', { redirect: 'manual' })).headers.get('location'), '/'); ok('sem concordar com os termos não inicia o login');
   const cb = (qs, ck) => fetch('http://127.0.0.1:' + port + '/auth/discord/callback?' + qs, { redirect: 'manual', headers: ck ? { cookie: ck } : {} });
-  assert.strictEqual((await cb('code=ana&state=' + first.state)).headers.get('location'), '/?discord=erro');
-  assert.strictEqual((await cb('code=ana&state=outro', first.st)).headers.get('location'), '/?discord=erro');
-  assert.strictEqual((await cb('code=invalido&state=' + first.state, first.st)).headers.get('location'), '/?discord=erro'); ok('retorno sem state certo ou com código inválido é recusado');
+  assert.strictEqual((await cb('code=ana&state=' + first.state)).headers.get('location'), '/?discord=erro&why=state');
+  assert.strictEqual((await cb('code=ana&state=outro', first.st)).headers.get('location'), '/?discord=erro&why=state');
+  assert.strictEqual((await cb('code=invalido&state=' + first.state, first.st)).headers.get('location'), '/?discord=erro&why=user_401'); ok('retorno sem state certo ou com código inválido é recusado');
 
   assert.strictEqual(first.location, '/');
   let me = (await ana.req('GET', '/api/me')).data.user;

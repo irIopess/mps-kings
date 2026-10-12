@@ -437,7 +437,7 @@
     if (q) { try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {} }
     api('/api/me').then(function (res) {
       S.me = res.user; S.ready = true; S.discordLogin = !!res.discordLogin;
-      if (/discord=erro/.test(q)) toast('Não consegui entrar com o Discord. Tente de novo.');
+      if (/discord=erro/.test(q)) { var w = /why=([a-z0-9_]+)/i.exec(q); toast('Não consegui entrar com o Discord. Tente de novo.' + (w ? ' (' + w[1] + ')' : '')); }
       renderAll();
       if (S.me) loadTickets();
     }).catch(function () { S.ready = true; renderAll(); });

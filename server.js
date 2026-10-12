@@ -259,7 +259,7 @@ function createHandler(opts = {}) {
   });
 
   /* ---------- login com Discord (OAuth2, escopo identify) ---------- */
-  const fail = (res) => send(res, 302, '', { Location: '/?discord=erro', 'Set-Cookie': stateCookie('') });
+  const fail = (res, why) => send(res, 302, '', { Location: '/?discord=erro&why=' + encodeURIComponent(String(why || 'erro').replace(/[^a-z0-9_]/gi, '').slice(0, 20)), 'Set-Cookie': stateCookie('') });
   route('GET', '/auth/discord', (ctx) => {
     if (!DISCORD_ON) return send(ctx.res, 302, '', { Location: '/?discord=off' });
     if (ctx.query.get('terms') !== '1') return send(ctx.res, 302, '', { Location: '/' });
@@ -270,12 +270,12 @@ function createHandler(opts = {}) {
   });
   route('GET', '/auth/discord/callback', async (ctx) => {
     const res = ctx.res;
-    if (!DISCORD_ON) return fail(res);
+    if (!DISCORD_ON) return fail(res, 'sem_segredo');
     if (limited('dcb:' + clientIp(ctx.req), 30, 600000)) return send(res, 429, 'Muitas tentativas');
     const raw = String(ctx.req.headers.cookie || '').split(';').map((s) => s.trim()).find((s) => s.startsWith('mpsst='));
     const [st, sg] = raw ? raw.slice(6).split('.') : [];
     const code = ctx.query.get('code');
-    if (!st || !sg || !code || ctx.query.get('state') !== st || sg !== sign('st' + st)) return fail(res);
+    if (!st || !sg || !code || ctx.query.get('state') !== st || sg !== sign('st' + st)) return fail(res, ctx.query.get('error') ? 'negado' : 'state');
     let du;
     try {
       const tr = await doFetch('https://discord.com/api/oauth2/token', {
@@ -288,8 +288,8 @@ function createHandler(opts = {}) {
       const ur = await doFetch('https://discord.com/api/users/@me', { headers: { Authorization: 'Bearer ' + tok.access_token }, signal: AbortSignal.timeout(8000) });
       if (!ur.ok) throw new Error('user_' + ur.status);
       du = await ur.json();
-    } catch (e) { console.error('Discord:', e.message); return fail(res); }
-    if (!du || !/^\d{5,25}$/.test(String(du.id)) || typeof du.username !== 'string') return fail(res);
+    } catch (e) { console.error('Discord:', e.message); return fail(res, String(e.message).replace(/[^a-z0-9_]/gi, '_')); }
+    if (!du || !/^\d{5,25}$/.test(String(du.id)) || typeof du.username !== 'string') return fail(res, 'dados');
     const nick = clean(du.username, 40), id = String(du.id);
     const avatar = typeof du.avatar === 'string' && /^[a-f0-9_]{8,64}$/i.test(du.avatar) ? `https://cdn.discordapp.com/avatars/${id}/${du.avatar}.png?size=128` : null;
     const known = Object.values(db.users).find((x) => x.discordId === id);
@@ -298,7 +298,7 @@ function createHandler(opts = {}) {
       await store.save();
       return send(res, 302, '', { Location: '/', 'Set-Cookie': [sessionCookie({ uid: known.id }), stateCookie('')] });
     }
-    if (Object.keys(db.users).length >= MAX_USERS) return fail(res);
+    if (Object.keys(db.users).length >= MAX_USERS) return fail(res, 'lotado');
     const uid = 'u' + crypto.randomBytes(8).toString('hex'), at = now();
     db.users[uid] = { id: uid, discordId: id, discordNick: nick, discordAvatar: avatar, isStaff: false, termsVersion: TERMS_VERSION, termsAcceptedAt: at, createdAt: at };
     await store.save();
