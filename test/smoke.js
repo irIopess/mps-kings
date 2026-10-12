@@ -30,6 +30,10 @@ const fakeFetch = async (url, init = {}) => {
     const d = discordUsers[c];
     return d ? json(d) : json({}, false, 401);
   }
+  if (u.startsWith('https://discord.com/api/users/@me/guilds/1531329234105139331/member')) {
+    const c = String(init.headers.Authorization).replace('Bearer tok-', '');
+    return c === 'ana' ? json({ nick: 'Ana Capitã' }) : json({ message: 'Unknown Guild' }, false, 404);
+  }
   throw new Error('fetch inesperado: ' + u);
 };
 const discordUsers = {
@@ -81,7 +85,7 @@ async function discordLogin(port, c, code) {
   const first = await discordLogin(port, ana, 'ana');
   const loc = new URL(first.go.headers.get('location'));
   assert.strictEqual(loc.origin + loc.pathname, 'https://discord.com/oauth2/authorize');
-  assert.strictEqual(loc.searchParams.get('client_id'), '1559004196303278140'); assert.strictEqual(loc.searchParams.get('scope'), 'identify');
+  assert.strictEqual(loc.searchParams.get('client_id'), '1559004196303278140'); assert.strictEqual(loc.searchParams.get('scope'), 'identify guilds.members.read');
   assert.strictEqual(loc.searchParams.get('redirect_uri'), 'http://localhost/auth/discord/callback'); ok('botão manda para o Discord com o client_id e o redirect do site');
   assert.strictEqual((await fetch('http://127.0.0.1:' + port + '/auth/discord', { redirect: 'manual' })).headers.get('location'), '/'); ok('sem concordar com os termos não inicia o login');
   const cb = (qs, ck) => fetch('http://127.0.0.1:' + port + '/auth/discord/callback?' + qs, { redirect: 'manual', headers: ck ? { cookie: ck } : {} });
@@ -91,7 +95,7 @@ async function discordLogin(port, c, code) {
 
   assert.strictEqual(first.location, '/');
   let me = (await ana.req('GET', '/api/me')).data.user;
-  assert.strictEqual(me.name, 'ana_dc'); assert.strictEqual(me.discordNick, 'ana_dc'); assert.strictEqual(me.discordLinked, true); assert.strictEqual(me.isAdmin, false); assert.strictEqual(me.robloxName, null);
+  assert.strictEqual(me.name, 'Ana Capitã'); assert.strictEqual(me.discordNick, 'ana_dc'); assert.strictEqual(me.discordLinked, true); assert.strictEqual(me.isAdmin, false); assert.strictEqual(me.robloxName, null);
   assert.match(me.discordAvatar, /^https:\/\/cdn\.discordapp\.com\/avatars\/111111111111111111\/abcdef/); ok('conectar já cria a conta com nome e foto do Discord, sem pedir nicks');
 
   const forged = client(port); forged.setCookie('mps=' + Buffer.from(JSON.stringify({ uid: me.id, iat: Date.now() })).toString('base64url') + '.assinaturafalsa');
@@ -146,7 +150,7 @@ async function discordLogin(port, c, code) {
   assert.strictEqual((await ana.req('POST', '/api/profile', { robloxNick: 'x' })).data.error, 'invalid_roblox');
   assert.strictEqual((await ana.req('POST', '/api/profile', { robloxNick: 'NinguemExiste' })).status, 404);
   const up = await ana.req('POST', '/api/profile', { robloxNick: 'anaplays' });
-  assert.strictEqual(up.status, 200); assert.strictEqual(up.data.user.robloxId, '1234'); assert.strictEqual(up.data.user.robloxName, 'AnaPlays'); assert.strictEqual(up.data.user.name, 'ana_dc');
+  assert.strictEqual(up.status, 200); assert.strictEqual(up.data.user.robloxId, '1234'); assert.strictEqual(up.data.user.robloxName, 'AnaPlays'); assert.strictEqual(up.data.user.name, 'Ana Capitã');
   assert.match(up.data.user.avatar, /^https:\/\/tr\.rbxcdn\.com\/1234\//);
   assert.strictEqual((await ana.req('GET', '/api/tickets')).data.tickets[0].robloxNick, null);
   assert.strictEqual((await staff.req('POST', '/api/profile', { robloxNick: 'NewAna' })).status, 403); ok('Roblox é opcional: entra no perfil, com ID e foto; ticket antigo guarda os dados da época');

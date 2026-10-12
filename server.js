@@ -50,6 +50,7 @@ function createHandler(opts = {}) {
   const STAFF_PASSWORD = String(env.STAFF_PASSWORD || '').trim();
   const DISCORD_ID = String(env.DISCORD_CLIENT_ID || '1559004196303278140').trim();
   const DISCORD_SECRET = String(env.DISCORD_CLIENT_SECRET || '').trim();
+  const DISCORD_GUILD = String(env.DISCORD_GUILD_ID || '1531329234105139331').trim();
   const DISCORD_ON = !!DISCORD_SECRET;
   const DISCORD_REDIRECT = BASE_URL + '/auth/discord/callback';
   const store = createStore(env.DATA_DIR || path.join(__dirname, 'data'));
@@ -181,7 +182,7 @@ function createHandler(opts = {}) {
   function publicUser(u) {
     return {
       id: u.id, isAdmin: !!u.isStaff,
-      name: u.isStaff ? 'Equipe' : (u.discordId ? u.discordNick : u.robloxName),
+      name: u.isStaff ? 'Equipe' : (u.discordId ? (u.discordServerNick || u.discordNick) : u.robloxName),
       robloxName: u.robloxName || null, robloxId: u.robloxId || null,
       avatar: u.robloxAvatar || null, discordNick: u.discordNick || null,
       discordAvatar: u.discordAvatar || null, discordLinked: !!u.discordId,
@@ -191,7 +192,7 @@ function createHandler(opts = {}) {
     const u = db.users[uid];
     if (!u) return { id: uid, name: 'Membro', avatar: null, robloxName: null, robloxId: null, discordNick: null };
     return {
-      id: u.id, name: u.isStaff ? 'Equipe' : (u.discordId ? u.discordNick : u.robloxName), avatar: u.discordAvatar || u.robloxAvatar || null,
+      id: u.id, name: u.isStaff ? 'Equipe' : (u.discordId ? (u.discordServerNick || u.discordNick) : u.robloxName), avatar: u.discordAvatar || u.robloxAvatar || null,
       robloxName: u.robloxName || null, robloxId: u.robloxId || null, discordNick: u.discordNick || null,
     };
   }
@@ -265,7 +266,7 @@ function createHandler(opts = {}) {
     if (ctx.query.get('terms') !== '1') return send(ctx.res, 302, '', { Location: '/' });
     if (limited('dstart:' + clientIp(ctx.req), 30, 600000)) return send(ctx.res, 429, 'Muitas tentativas');
     const state = crypto.randomBytes(16).toString('hex');
-    const q = new URLSearchParams({ client_id: DISCORD_ID, response_type: 'code', redirect_uri: DISCORD_REDIRECT, scope: 'identify', state });
+    const q = new URLSearchParams({ client_id: DISCORD_ID, response_type: 'code', redirect_uri: DISCORD_REDIRECT, scope: 'identify guilds.members.read', state });
     send(ctx.res, 302, '', { Location: 'https://discord.com/oauth2/authorize?' + q, 'Set-Cookie': stateCookie(state + '.' + sign('st' + state)) });
   });
   route('GET', '/auth/discord/callback', async (ctx) => {
@@ -276,7 +277,7 @@ function createHandler(opts = {}) {
     const [st, sg] = raw ? raw.slice(6).split('.') : [];
     const code = ctx.query.get('code');
     if (!st || !sg || !code || ctx.query.get('state') !== st || sg !== sign('st' + st)) return fail(res, ctx.query.get('error') ? 'negado' : 'state');
-    let du;
+    let du, serverNick = null;
     try {
       const tr = await doFetch('https://discord.com/api/oauth2/token', {
         method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -288,19 +289,24 @@ function createHandler(opts = {}) {
       const ur = await doFetch('https://discord.com/api/users/@me', { headers: { Authorization: 'Bearer ' + tok.access_token }, signal: AbortSignal.timeout(8000) });
       if (!ur.ok) throw new Error('user_' + ur.status);
       du = await ur.json();
+      /* apelido da pessoa no servidor (se ela estiver nele); falhar aqui não impede o login */
+      try {
+        const mr = await doFetch('https://discord.com/api/users/@me/guilds/' + encodeURIComponent(DISCORD_GUILD) + '/member', { headers: { Authorization: 'Bearer ' + tok.access_token }, signal: AbortSignal.timeout(8000) });
+        if (mr.ok) { const m = await mr.json(); serverNick = m && typeof m.nick === 'string' ? clean(m.nick, 40) || null : null; }
+      } catch (e) { /* segue sem o apelido */ }
     } catch (e) { console.error('Discord:', e.message); return fail(res, String(e.message).replace(/[^a-z0-9_]/gi, '_')); }
     if (!du || !/^\d{5,25}$/.test(String(du.id)) || typeof du.username !== 'string') return fail(res, 'dados');
     const nick = clean(du.username, 40), id = String(du.id);
     const avatar = typeof du.avatar === 'string' && /^[a-f0-9_]{8,64}$/i.test(du.avatar) ? `https://cdn.discordapp.com/avatars/${id}/${du.avatar}.png?size=128` : null;
     const known = Object.values(db.users).find((x) => x.discordId === id);
     if (known) {
-      Object.assign(known, { discordNick: nick, discordAvatar: avatar });
+      Object.assign(known, { discordNick: nick, discordAvatar: avatar, discordServerNick: serverNick });
       await store.save();
       return send(res, 302, '', { Location: '/', 'Set-Cookie': [sessionCookie({ uid: known.id }), stateCookie('')] });
     }
     if (Object.keys(db.users).length >= MAX_USERS) return fail(res, 'lotado');
     const uid = 'u' + crypto.randomBytes(8).toString('hex'), at = now();
-    db.users[uid] = { id: uid, discordId: id, discordNick: nick, discordAvatar: avatar, isStaff: false, termsVersion: TERMS_VERSION, termsAcceptedAt: at, createdAt: at };
+    db.users[uid] = { id: uid, discordId: id, discordNick: nick, discordServerNick: serverNick, discordAvatar: avatar, isStaff: false, termsVersion: TERMS_VERSION, termsAcceptedAt: at, createdAt: at };
     await store.save();
     send(res, 302, '', { Location: '/', 'Set-Cookie': [sessionCookie({ uid }), stateCookie('')] });
   });
