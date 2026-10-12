@@ -246,8 +246,7 @@
     } else {
       info = h('div', null,
         h('div', { class: 'prow' }, h('span', { class: 'plabel', text: 'Discord' }),
-          h('p', { class: 'pvalue', text: me.discordNick }),
-          me.discordLinked ? h('span', { class: 'pid', text: 'Nick (usuário) da conta conectada' }) : null),
+          h('p', { class: 'pvalue', text: me.discordNick })),
         me.discordLinked ? h('div', { class: 'prow' }, h('span', { class: 'plabel', text: 'Roblox Account' }),
           h('p', { class: 'pvalue', text: me.serverNick || 'Sem apelido no servidor' })) : null,
         me.discordLinked ? rolesBlock(me) : null);
