@@ -183,6 +183,7 @@ body.guest .top { display: none; }
 .m.mine { align-items: flex-end; }
 .bubble { max-width: min(80%, 540px); padding: 10px 14px; border-radius: 18px 18px 18px 6px; background: var(--surface-2); border: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; }
 .m.mine .bubble { border-radius: 18px 18px 6px 18px; background: var(--fg); border-color: var(--fg); color: var(--ink); }
+.m .who-msg { font: 600 12px var(--font-mono); color: var(--muted); letter-spacing: 0.02em; padding: 0 4px; max-width: min(80%, 540px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .m .by { font: 500 11px var(--font-mono); color: var(--faint); }
 .composer { display: flex; align-items: flex-end; gap: 10px; padding: 12px; border-top: 1px solid var(--line); }
 .composer textarea, .field input, .field textarea { width: 100%; padding: 11px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg); resize: none; line-height: 1.45; }

@@ -188,7 +188,7 @@
   /* ---------- renderização ---------- */
   function renderAll() { renderChrome(); show(current); }
   function renderTicketsUI() { renderChrome(); if (current === 'support') renderSupport(); }
-  function meAvatar(me) { return me.discordAvatar || me.avatar || letterAvatar(me.isAdmin ? 'E' : me.name); }
+  function meAvatar(me) { return me.discordAvatar || me.avatar || letterAvatar(me.isAdmin ? 'S' : me.name); }
 
   function renderChrome() {
     var me = S.me;
@@ -361,12 +361,13 @@
     if (S.threadKey !== t.id) S.seenMsgs = {};
     var firstLoad = S.threadKey !== t.id, freshM = 0, total = S.msgs.length;
     S.msgs.forEach(function (m, idx) {
-      var by = m.mine ? 'Você' : (m.from === 'admin' ? 'Staff' : ((m.author && m.author.name) || 'Membro'));
+      var by = m.mine ? 'Você' : (m.from === 'admin' ? 'Staff' : ((m.author && (m.author.discordNick || m.author.name)) || 'Membro'));
       if (!S.seenMsgs[m.id]) S.seenMsgs[m.id] = (firstLoad && idx < total - 8) ? 1 : Date.now();
       var ageM = Date.now() - S.seenMsgs[m.id], isNewM = ageM < 900;
       var mEl = h('div', { class: 'm' + (m.mine ? ' mine' : '') },
+        h('div', { class: 'who-msg', text: by }),
         h('div', { class: 'bubble', text: String(m.text || '') }),
-        h('div', { class: 'by', text: by + ' · ' + fmt(m.at) }));
+        h('div', { class: 'by', text: fmt(m.at) }));
       if (isNewM && (!firstLoad || idx >= total - 8)) { mEl.classList.add('fresh'); mEl.style.setProperty('--i', String(firstLoad ? freshM++ : 0)); mEl.style.setProperty('--el', ageM + 'ms'); }
       box.append(mEl);
     });
