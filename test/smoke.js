@@ -219,7 +219,7 @@ async function discordLogin(port, c, code) {
   const nb = http.createServer(createHandler({ env: Object.assign({}, env, { DISCORD_BOT_TOKEN: '', DATA_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'mps-')) }), fetch: fakeFetch }));
   await new Promise((r) => nb.listen(0, '127.0.0.1', r));
   const nbc = client(nb.address().port); await nbc.req('POST', '/api/staff', { password: 'EREMITA' });
-  assert.strictEqual((await nbc.req('GET', '/api/mps/roles')).data.unavailable, true); nb.close(); ok('Roles sem bot: aviso de indisponível');
+  assert.strictEqual((await nbc.req('GET', '/api/mps/roles')).data.manual, true); nb.close(); ok('Roles sem bot: lista manual');
 
   const html = await anon.req('GET', '/');
   assert.strictEqual(html.status, 200); assert.match(html.data, /MPS Kings/); assert.match(html.data, /Conectar com Discord/); assert.ok(!/Pr[ée]via/.test(html.data));

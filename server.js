@@ -402,6 +402,14 @@ function createHandler(opts = {}) {
     }
     return { roles: out, total: humans.length };
   }
+  /* lista manual (do mais alto ao mais baixo), usada quando o bot do Discord não está configurado */
+  const MANUAL_ROLES = [
+    { name: 'King', color: '#f5b942', members: ['__henri_que.'] },
+    { name: 'Presidents', color: '#ff6464', members: ['frost.bte'] },
+    { name: 'Prince', color: '#b07bff', members: ['examinadores', 'doriian38'] },
+    { name: 'Contribuidor', color: '#3ddc84', members: ['mcfabezxcxz', 'cook1d', 'sog2407'] },
+  ];
+  const manualView = () => ({ manual: true, total: MANUAL_ROLES.reduce((n, r) => n + r.members.length, 0), roles: MANUAL_ROLES.map((r) => ({ name: r.name, color: r.color, members: r.members.map((name) => ({ name, avatar: null })) })) });
   route('GET', '/api/mps/roles', { login: true }, async (ctx) => {
     try {
       if (!membersCache.view || now() - membersCache.at > 300000) membersCache = { at: now(), view: await loadMembers() };
@@ -409,7 +417,7 @@ function createHandler(opts = {}) {
     } catch (e) {
       console.error('Discord membros:', e.message);
       if (membersCache.view) return send(ctx.res, 200, membersCache.view);
-      send(ctx.res, 200, { unavailable: true, reason: ctx.isAdmin ? String(e.message).slice(0, 60) : undefined });
+      send(ctx.res, 200, manualView());
     }
   });
 
