@@ -164,6 +164,23 @@ async function discordLogin(port, c, code) {
   const l2 = (await staff.req('GET', '/api/tickets')).data.tickets.find((t) => t.id === t2.data.ticket.id);
   assert.strictEqual(l2.robloxNick, 'AnaPlays'); assert.strictEqual(l2.author.robloxId, '1234'); ok('equipe vê nick e ID do Roblox quando a pessoa informou');
 
+  /* anúncios e tema */
+  assert.strictEqual((await ana.req('POST', '/api/announcements', { title: 'x', text: 'y' })).status, 403);
+  assert.strictEqual((await anon.req('GET', '/api/announcements')).status, 401);
+  assert.strictEqual((await staff.req('POST', '/api/announcements', { title: '', text: 'y' })).status, 400);
+  const an = await staff.req('POST', '/api/announcements', { title: 'Bem-vindos', text: 'Primeiro anúncio' });
+  assert.strictEqual(an.status, 201); assert.strictEqual(an.data.announcement.by, 'Staff');
+  let al = (await ana.req('GET', '/api/announcements')).data;
+  assert.strictEqual(al.announcements.length, 1); assert.strictEqual(al.unread, 1);
+  await ana.req('POST', '/api/announcements/seen', {});
+  assert.strictEqual((await ana.req('GET', '/api/announcements')).data.unread, 0); ok('só a Staff publica; membros leem e o contador de novos zera ao abrir');
+  assert.strictEqual((await ana.req('POST', '/api/announcements/' + an.data.announcement.id + '/delete', {})).status, 403);
+  assert.strictEqual((await staff.req('POST', '/api/announcements/' + an.data.announcement.id + '/delete', {})).status, 200);
+  assert.strictEqual((await ana.req('GET', '/api/announcements')).data.announcements.length, 0); ok('só a Staff apaga anúncio');
+  assert.strictEqual((await ana.req('POST', '/api/theme', { theme: 'rosa-choque' })).status, 400);
+  assert.strictEqual((await ana.req('POST', '/api/theme', { theme: 'azul' })).data.user.theme, 'azul');
+  assert.strictEqual((await ana.req('GET', '/api/me')).data.user.theme, 'azul'); ok('cada pessoa guarda o tema de cores escolhido');
+
   const html = await anon.req('GET', '/');
   assert.strictEqual(html.status, 200); assert.match(html.data, /MPS Kings/); assert.match(html.data, /Conectar com Discord/); assert.ok(!/Pr[ée]via/.test(html.data));
   assert.strictEqual((await fetch('http://127.0.0.1:' + port + '/hero.jpg')).status, 200);

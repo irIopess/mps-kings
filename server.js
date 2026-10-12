@@ -22,7 +22,7 @@ const MAX_USERS = 50000;
 function createStore(dir) {
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, 'db.json');
-  let db = { users: {}, tickets: {}, messages: {} };
+  let db = { users: {}, tickets: {}, messages: {}, announcements: {} };
   try {
     db = Object.assign(db, JSON.parse(fs.readFileSync(file, 'utf8')));
   } catch (e) {
@@ -213,7 +213,7 @@ function createHandler(opts = {}) {
       robloxName: u.robloxName || null, robloxId: u.robloxId || null,
       avatar: u.robloxAvatar || null, discordNick: u.discordNick || null,
       discordAvatar: u.discordAvatar || null, discordLinked: !!u.discordId,
-      serverNick: u.discordServerNick || null, ...(u.discordId ? rolesView(u) : { roles: [], rolesUnavailable: false }),
+      serverNick: u.discordServerNick || null, theme: u.theme || null, ...(u.discordId ? rolesView(u) : { roles: [], rolesUnavailable: false }),
     };
   }
   function author(uid) {
@@ -340,6 +340,49 @@ function createHandler(opts = {}) {
     db.users[uid] = { id: uid, discordId: id, discordNick: nick, discordServerNick: serverNick, discordRoleIds: roleIds, discordAvatar: avatar, isStaff: false, termsVersion: TERMS_VERSION, termsAcceptedAt: at, createdAt: at };
     await store.save();
     send(res, 302, '', { Location: '/', 'Set-Cookie': [sessionCookie({ uid }), stateCookie('')] });
+  });
+
+  /* ---------- tema de cores (cada pessoa escolhe o seu) ---------- */
+  const THEMES = ['padrao', 'azul', 'roxo', 'verde', 'vermelho', 'dourado'];
+  route('POST', '/api/theme', { login: true, json: true }, async (ctx) => {
+    const t = clean(ctx.body.theme, 20);
+    if (!THEMES.includes(t)) return send(ctx.res, 400, { error: 'invalid_theme' });
+    ctx.user.theme = t;
+    await store.save();
+    send(ctx.res, 200, { user: publicUser(ctx.user) });
+  });
+
+  /* ---------- anúncios (a Staff publica, todos leem) ---------- */
+  const MAX_ANN = 200;
+  const annView = (a) => ({ id: a.id, title: a.title, text: a.text, at: a.at, by: 'Staff' });
+  route('GET', '/api/announcements', { login: true }, (ctx) => {
+    const all = Object.values(db.announcements).sort((a, b) => b.at - a.at).slice(0, 50);
+    const seenAt = ctx.user.annSeenAt || ctx.user.createdAt || 0;
+    send(ctx.res, 200, { announcements: all.map(annView), unread: all.filter((a) => a.at > seenAt).length, seenAt });
+  });
+  route('POST', '/api/announcements/seen', { login: true, json: true }, async (ctx) => {
+    ctx.user.annSeenAt = now();
+    await store.save();
+    send(ctx.res, 200, { ok: true });
+  });
+  route('POST', '/api/announcements', { login: true, json: true }, async (ctx) => {
+    if (!ctx.isAdmin) return send(ctx.res, 403, { error: 'staff_only' });
+    const title = clean(ctx.body.title, 80), text = clean(ctx.body.text, 2000);
+    if (!title || !text) return send(ctx.res, 400, { error: 'missing_fields' });
+    if (limited('ann:' + ctx.user.id, 20, 60000)) return send(ctx.res, 429, { error: 'rate_limited' });
+    const id = 'a' + crypto.randomBytes(6).toString('hex');
+    db.announcements[id] = { id, title, text, at: now(), uid: ctx.user.id };
+    const ids = Object.keys(db.announcements);
+    if (ids.length > MAX_ANN) ids.sort((x, y) => db.announcements[x].at - db.announcements[y].at).slice(0, ids.length - MAX_ANN).forEach((k) => delete db.announcements[k]);
+    await store.save();
+    send(ctx.res, 201, { announcement: annView(db.announcements[id]) });
+  });
+  route('POST', '/api/announcements/:id/delete', { login: true, json: true }, async (ctx) => {
+    if (!ctx.isAdmin) return send(ctx.res, 403, { error: 'staff_only' });
+    if (!db.announcements[ctx.params.id]) return send(ctx.res, 404, { error: 'not_found' });
+    delete db.announcements[ctx.params.id];
+    await store.save();
+    send(ctx.res, 200, { ok: true });
   });
 
   route('POST', '/api/logout', { json: true }, (ctx) => send(ctx.res, 200, { ok: true }, { 'Set-Cookie': sessionCookie(null) }));

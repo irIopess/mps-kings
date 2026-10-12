@@ -2,7 +2,7 @@
 
 O que o site faz:
 
-- **Termos de uso**: quem abre o site vê só os termos e o botão **Conectar com Discord** (conectar vale como concordar). O Discord confirma o usuário e a foto (OAuth, escopo `identify`) e a pessoa já entra com isso, sem digitar nick nenhum.
+- **Login com Discord**: quem abre o site vê só os termos e o botão **Conectar com Discord** (conectar vale como concordar). O Discord confirma o usuário e a foto (OAuth, escopo `identify`) e a pessoa já entra com isso, sem digitar nick nenhum.
 - **Welcome back**: a Home mostra o usuário e a foto do Discord da pessoa.
 - **My Profile**: foto e usuário do Discord. O nick do Roblox é opcional: a pessoa adiciona ali e o site traz ID e foto do Roblox.
 - **Support**: qualquer membro abre tickets e conversa com a Staff. O Discord (e o Roblox, se informado) vai junto automaticamente.
@@ -70,3 +70,9 @@ Usuários e tickets ficam num arquivo (`db.json`) dentro de `DATA_DIR`. Se o ser
 O Welcome back mostra o **apelido da pessoa no servidor** do Discord (ID `1531329234105139331`, mude com `DISCORD_GUILD_ID`). Se ela não estiver no servidor ou não tiver apelido, aparece o nome de usuário.
 
 No **My Profile** aparecem o usuário do Discord, o apelido no servidor e os cargos dele (bolinha na cor do cargo e o nome em uma caixa). Os cargos são lidos no momento do login. O topo da página mostra o usuário (nick), e só o Welcome back usa o apelido.
+
+## Anúncios, Staff Setup e cores
+
+- **Anúncios:** aba para todos os membros lerem os avisos da Staff. Aparece uma bolinha na aba quando há anúncio novo, e o anúncio ainda não lido fica com a marca "Novo".
+- **Staff Setup:** quem entra pelo botão **Staff** ganha o botão extra **Staff Setup**, onde publica e apaga anúncios.
+- **Cores do site:** em My Profile cada pessoa escolhe um tema (Padrão, Azul, Roxo, Verde, Vermelho ou Dourado). A escolha fica salva na conta e também no navegador.

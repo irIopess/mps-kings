@@ -2,7 +2,7 @@
   'use strict';
   var $ = function (s) { return document.querySelector(s); };
   var S = {
-    me: null, ready: false, seenRows: {}, seenMsgs: {},
+    me: null, ready: false, seenRows: {}, seenMsgs: {}, ann: [], annUnread: 0, annAt: 0, annMarkFrom: null, annSeen: {},
     tickets: [], ticketsSig: '', loaded: false, loadedOnce: false, filter: 'open',
     selected: null, composing: false, cur: null, msgs: [], sig: '', threadKey: '',
     sending: false, editProfile: false
@@ -74,6 +74,8 @@
       case 'roblox_not_found': return 'Não achei esse usuário no Roblox. Confira o nick (o nome de usuário, não o de exibição).';
       case 'roblox_unavailable': return 'O Roblox não respondeu agora. Tente de novo em instantes.';
       case 'wrong_password': return 'Senha incorreta.';
+      case 'staff_only': return 'Só a Staff pode fazer isso.';
+      case 'invalid_theme': return 'Essa cor não existe.';
       case 'staff_disabled': return 'O acesso da Staff não está configurado neste servidor.';
       case 'full': return 'O site está lotado no momento. Tente mais tarde.';
       default: return 'Algo deu errado. Tente de novo.';
@@ -81,7 +83,7 @@
   }
   function resetData() {
     S.tickets = []; S.ticketsSig = ''; S.loaded = false; S.loadedOnce = false;
-    S.selected = null; S.composing = false; S.cur = null; S.msgs = []; S.sig = ''; S.editProfile = false; S.seenRows = {}; S.seenMsgs = {};
+    S.selected = null; S.composing = false; S.cur = null; S.msgs = []; S.sig = ''; S.editProfile = false; S.seenRows = {}; S.seenMsgs = {}; S.ann = []; S.annUnread = 0; S.annAt = 0; S.annMarkFrom = null; S.annSeen = {};
   }
   function authLost() {
     S.me = null; resetData();
@@ -92,8 +94,10 @@
   var pill = null;
   function movePill() {
     var nav = document.querySelector('.nav'), cur = nav && nav.querySelector('a[aria-current="page"]');
-    if (!nav || !cur || !cur.offsetWidth) return;
+    if (!nav) return;
     if (!pill) { pill = document.createElement('span'); pill.className = 'nav-pill'; pill.setAttribute('aria-hidden', 'true'); nav.prepend(pill); }
+    pill.style.opacity = cur ? '' : '0';
+    if (!cur || !cur.offsetWidth) return;
     pill.style.width = cur.offsetWidth + 'px';
     pill.style.transform = 'translateX(' + cur.offsetLeft + 'px)';
     if (!pill.classList.contains('ready')) requestAnimationFrame(function () { requestAnimationFrame(function () { pill.classList.add('ready'); }); });
@@ -102,11 +106,12 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(movePill);
 
   /* ---------- telas ---------- */
-  var VIEWS = ['home', 'profile', 'support'];
+  var VIEWS = ['home', 'profile', 'support', 'announcements', 'setup'];
   var current = 'home', lastShown = '';
   var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   function show(v) {
     if (VIEWS.indexOf(v) < 0) v = 'home';
+    if (v === 'setup' && !(S.me && S.me.isAdmin)) v = 'home';
     current = v;
     var guest = S.ready && !S.me;
     document.body.classList.toggle('guest', guest);
@@ -122,11 +127,14 @@
     VIEWS.forEach(function (n) {
       $('#view-' + n).hidden = guest || !S.ready || n !== v;
       var a = $('#nav-' + n);
+      if (!a) return;
       if (n === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     if (guest || !S.ready) return;
     movePill();
+    if (v !== 'announcements') S.annMarkFrom = null;
     if (v === 'profile') renderProfile();
+    if (v === 'announcements' || v === 'setup') { renderAnn(); loadAnn(true); }
     if (v === 'support') { renderSupport(); loadTickets(); }
   }
   document.addEventListener('click', function (ev) {
@@ -155,6 +163,7 @@
   }
   function loadTickets() {
     if (!S.me) return Promise.resolve();
+    loadAnn(false);
     return api('/api/tickets').then(function (res) {
       var sig = JSON.stringify(res.tickets);
       S.loaded = true;
@@ -193,6 +202,9 @@
   function renderChrome() {
     var me = S.me;
     $('#btn-staff').hidden = !me || me.isAdmin;
+    $('#btn-setup').hidden = !(me && me.isAdmin);
+    var ab = $('#nav-ann-badge'); ab.hidden = !(me && S.annUnread > 0 && current !== 'announcements');
+    movePill();
     $('#me-user').hidden = !me;
     if (me) {
       $('#me-img').src = meAvatar(me);
@@ -238,12 +250,75 @@
     return box;
   }
 
+  /* ---------- anúncios ---------- */
+  function annCard(a, opts) {
+    var isNew = opts.markFrom != null && a.at > opts.markFrom;
+    var top = h('div', { class: 'ann-top' }, h('h3', { text: a.title }), isNew ? h('span', { class: 'new-pill', text: 'Novo' }) : null);
+    var card = h('article', { class: 'ann' + (isNew ? ' is-new' : '') }, top,
+      h('p', { text: a.text }), h('time', { text: 'Staff · ' + fmt(a.at) }));
+    if (opts.del) card.append(h('button', { class: 'btn small del', type: 'button', text: 'Excluir', onclick: function () {
+      api('/api/announcements/' + a.id + '/delete', { method: 'POST', body: {} }).then(function () { toast('Anúncio apagado.'); return loadAnn(true); })
+        .catch(function (e) { toast(errText(e)); });
+    } }));
+    if (!S.annSeen[a.id]) { S.annSeen[a.id] = 1; card.classList.add('fresh'); }
+    return card;
+  }
+  function renderAnn() {
+    if (!S.me) return;
+    var box = $('#ann-list'), sbox = $('#setup-list');
+    box.replaceChildren(); sbox.replaceChildren();
+    var empty = function () { return h('div', { class: 'ann-empty', text: S.annAt ? 'Nenhum anúncio por enquanto.' : 'Carregando…' }); };
+    if (!S.ann.length) { box.append(empty()); sbox.append(empty()); return; }
+    S.ann.forEach(function (a) {
+      box.append(annCard(a, { markFrom: S.annMarkFrom }));
+      sbox.append(annCard(a, { del: true }));
+    });
+  }
+  function loadAnn(force) {
+    if (!S.me) return Promise.resolve();
+    if (!force && Date.now() - S.annAt < 14000) return Promise.resolve();
+    S.annAt = Date.now();
+    return api('/api/announcements').then(function (res) {
+      var sig = JSON.stringify(res.announcements), changed = sig !== S.annSig;
+      if (current === 'announcements' && S.annMarkFrom == null) S.annMarkFrom = res.seenAt || 0;
+      S.annSig = sig; S.ann = res.announcements; S.annUnread = res.unread;
+      if (current === 'announcements') {
+        if (res.unread > 0) api('/api/announcements/seen', { method: 'POST', body: {} }).then(function () { S.annUnread = 0; renderChrome(); }).catch(function () {});
+      }
+      if (changed || current === 'announcements') { if (current === 'announcements' || current === 'setup') renderAnn(); }
+      renderChrome();
+    }).catch(function () {});
+  }
+
+  /* ---------- cores do site ---------- */
+  var THEMES = [['padrao', 'Padrão', '#f5f5f6'], ['azul', 'Azul', '#6b9bff'], ['roxo', 'Roxo', '#b07bff'], ['verde', 'Verde', '#3ddc84'], ['vermelho', 'Vermelho', '#ff6464'], ['dourado', 'Dourado', '#f5b942']];
+  function currentTheme() { return document.documentElement.getAttribute('data-theme') || 'padrao'; }
+  function applyTheme(name, save) {
+    if (!THEMES.some(function (t) { return t[0] === name; })) name = 'padrao';
+    if (name === 'padrao') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', name);
+    if (save) { try { localStorage.setItem('mps-theme', name); } catch (e) {} }
+  }
+  function themeBlock() {
+    var box = h('div', { class: 'theme-box' }, h('h2', { text: 'Cores do site' }), h('p', { text: 'Escolha as cores da interface. Só muda para você.' }));
+    var wrap = h('div', { class: 'swatches' });
+    THEMES.forEach(function (t) {
+      var dot = h('i'); dot.style.backgroundColor = t[2];
+      wrap.append(h('button', { class: 'sw', type: 'button', 'aria-pressed': String(currentTheme() === t[0]), onclick: function () {
+        applyTheme(t[0], true);
+        wrap.querySelectorAll('.sw').forEach(function (b) { b.setAttribute('aria-pressed', String(b === this)); }, this);
+        api('/api/theme', { method: 'POST', body: { theme: t[0] } }).catch(function () {});
+      } }, dot, t[1]));
+    });
+    box.append(wrap);
+    return box;
+  }
+
   function renderProfile() {
     var box = $('#profile-box'); box.replaceChildren();
     if (!S.ready || !S.me) return;
     var me = S.me;
     if (me.isAdmin) {
-      box.append(h('div', { class: 'gate' }, h('p', { text: 'Conta da Staff. Você vê e responde os tickets de todos os membros.' })));
+      box.append(h('div', { class: 'gate' }, h('p', { text: 'Conta da Staff. Você vê e responde os tickets de todos os membros.' })), themeBlock());
       return;
     }
     var pic = me.discordAvatar || me.avatar;
@@ -276,7 +351,7 @@
           h('p', { class: 'pvalue', text: me.serverNick || 'Sem apelido no servidor' })) : null,
         me.discordLinked ? rolesBlock(me) : null);
     }
-    box.append(h('div', { class: 'profile-card' }, photo, info));
+    box.append(h('div', { class: 'profile-card' }, photo, info), themeBlock());
   }
 
   function renderSupport() {
@@ -470,6 +545,17 @@
         .then(function () { return Promise.all([loadThread(), loadTickets()]); })
         .catch(function (e) { toast(errText(e)); });
     });
+    $('#ann-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      if (S.sending) return;
+      var t = $('#ann-title').value.trim(), x = $('#ann-text').value.trim(), err = $('#ann-err');
+      if (!t || !x) { err.textContent = errText({ code: 'missing_fields' }); return; }
+      S.sending = true; $('#ann-send').disabled = true; err.textContent = '';
+      api('/api/announcements', { method: 'POST', body: { title: t, text: x } }).then(function () {
+        $('#ann-title').value = ''; $('#ann-text').value = ''; toast('Anúncio publicado.'); return loadAnn(true);
+      }).catch(function (e) { err.textContent = errText(e); })
+        .then(function () { S.sending = false; $('#ann-send').disabled = false; });
+    });
     $('#btn-logout').addEventListener('click', function () {
       api('/api/logout', { method: 'POST', body: {} }).catch(function () {}).then(function () {
         current = 'home'; authLost();
@@ -480,12 +566,14 @@
 
   /* ---------- início ---------- */
   function boot() {
+    try { applyTheme(localStorage.getItem('mps-theme') || 'padrao', false); } catch (e) {}
     bind();
     show(initialView());
     var q = location.search;
     if (q) { try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {} }
     api('/api/me').then(function (res) {
       S.me = res.user; S.ready = true; S.discordLogin = !!res.discordLogin;
+      if (S.me && S.me.theme) applyTheme(S.me.theme, true);
       if (/discord=erro/.test(q)) { var w = /why=([a-z0-9_]+)/i.exec(q); toast('Não consegui entrar com o Discord. Tente de novo.' + (w ? ' (' + w[1] + ')' : '')); }
       renderAll();
       if (S.me) loadTickets();

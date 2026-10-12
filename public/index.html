@@ -21,11 +21,13 @@
       <a href="#home" data-go="home" id="nav-home">Home</a>
       <a href="#profile" data-go="profile" id="nav-profile">My Profile</a>
       <a href="#support" data-go="support" id="nav-support">Support<span class="badge" id="nav-badge" hidden></span></a>
+      <a href="#announcements" data-go="announcements" id="nav-announcements">Anúncios<span class="badge" id="nav-ann-badge" hidden></span></a>
       <a href="https://linktr.ee/MPSKings" target="_blank" rel="noopener noreferrer" id="nav-links">Links
         <svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>
       </a>
     </nav>
     <div class="me" id="me">
+      <button class="btn small ghost" id="btn-setup" type="button" data-go="setup" hidden>Staff Setup</button>
       <button class="btn small ghost" id="btn-staff" type="button" hidden>Staff</button>
       <div class="me-user" id="me-user" hidden>
         <img id="me-img" alt="" width="32" height="32" referrerpolicy="no-referrer">
@@ -41,9 +43,8 @@
       <div class="login-card">
         <img class="login-logo" src="/logo.png" alt="MPS Kings" width="396" height="194">
         <div id="step-terms" class="step">
-          <h1>Termos de uso</h1>
-          <p class="terms">Para o uso de alguns serviços, precisaremos de algumas informações suas, como nome de usuário (username) ou e-mail, para uma experiência melhor.</p>
-          <p class="phint">Ao conectar com o Discord, você concorda com os termos de uso.</p>
+          <h1>Login com Discord</h1>
+          <p class="terms">Ao autorizar o Discord, ele acessará informações públicas da sua conta, como Foto, Username, faixa, servidores etc.</p>
           <button class="btn primary big" id="btn-agree" type="button">Conectar com Discord</button>
         </div>
         <button class="btn small ghost staff-entry" id="btn-staff-entry" type="button">Staff</button>
@@ -80,6 +81,39 @@
     <section id="view-profile" hidden>
       <h1 class="sr">My Profile</h1>
       <div id="profile-box"></div>
+    </section>
+
+    <section id="view-announcements" hidden>
+      <div class="sup-head">
+        <div>
+          <h1>Anúncios</h1>
+          <p>Avisos e novidades da Staff.</p>
+        </div>
+      </div>
+      <div class="ann-list" id="ann-list"></div>
+    </section>
+
+    <section id="view-setup" hidden>
+      <div class="sup-head">
+        <div>
+          <h1>Staff Setup</h1>
+          <p>Publique anúncios para todos os membros.</p>
+        </div>
+      </div>
+      <form class="setup-card" id="ann-form" novalidate>
+        <div class="field">
+          <label for="ann-title">Título</label>
+          <input id="ann-title" maxlength="80" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="ann-text">Mensagem</label>
+          <textarea id="ann-text" rows="5" maxlength="2000"></textarea>
+        </div>
+        <p class="phint err" id="ann-err" role="alert"></p>
+        <div class="actions"><button class="btn primary" id="ann-send" type="submit">Publicar anúncio</button></div>
+      </form>
+      <h2 class="sub-h">Publicados</h2>
+      <div class="ann-list" id="setup-list"></div>
     </section>
 
     <section id="view-support" hidden>
