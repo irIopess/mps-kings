@@ -87,6 +87,6 @@ No **My Profile** aparecem o usuário do Discord, o apelido no servidor e os car
 - **Staff Setup:** quem entra pelo botão **Staff** ganha o botão extra **Staff Setup**, onde publica e apaga anúncios.
 - **Cores do site:** em My Profile cada pessoa escolhe um tema (Padrão, Azul, Roxo, Verde, Vermelho ou Dourado). A escolha fica salva na conta e também no navegador.
 
-## MPS (Roles, Spreadsheet, Jail)
+## Important (Roles, Spreadsheet, Jail, Doações)
 - **Roles** precisa de `DISCORD_BOT_TOKEN`, do bot dentro do servidor e do *Server Members Intent* ligado no Developer Portal. Bots ficam de fora.
 - **Jail**: a Staff cria/remove bans em *Staff Setup > Jail*. Categorias ficam em `BAN_CATEGORIES` no `server.js`.

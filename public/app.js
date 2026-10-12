@@ -133,7 +133,7 @@
       if (!a) return;
       if (n === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
-    var inMps = v === 'roles' || v === 'jail';
+    var inMps = v === 'roles' || v === 'jail' || v === 'donations';
     var mp = $('#nav-mps');
     if (inMps && !guest) mp.setAttribute('aria-current', 'page'); else mp.removeAttribute('aria-current');
     if (inMps && !guest) setSub(true);
