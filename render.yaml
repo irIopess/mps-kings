@@ -1,0 +1,24 @@
+# Configuração para o Render (New > Blueprint). Os segredos você cola no painel, não aqui.
+services:
+  - type: web
+    name: mps-kings
+    runtime: node
+    plan: free            # free apaga os dados ao reiniciar; para guardar tickets use "starter" e ative o disco abaixo
+    buildCommand: "echo ok"
+    startCommand: node server.js
+    envVars:
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: STAFF_PASSWORD
+        value: EREMITA
+      - key: BASE_URL
+        sync: false        # cole o endereço do site, ex.: https://mps-kings.onrender.com
+      - key: DISCORD_CLIENT_SECRET
+        sync: false        # cole o Client Secret do Discord
+      - key: DISCORD_CLIENT_ID
+        value: "1559004196303278140"
+    # disk:                # só no plano pago
+    #   name: dados
+    #   mountPath: /var/data
+    #   sizeGB: 1
+    # (com o disco, crie também a variável DATA_DIR=/var/data)

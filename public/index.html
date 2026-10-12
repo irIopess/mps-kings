@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>MPS Kings</title>
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="#home" data-go="home" aria-label="MPS Kings">
+      <img class="logo-sm" src="/logo.png" alt="MPS Kings" width="74" height="36">
+    </a>
+    <nav class="nav" aria-label="Principal">
+      <a href="#home" data-go="home" id="nav-home">Home</a>
+      <a href="#profile" data-go="profile" id="nav-profile">My Profile</a>
+      <a href="#support" data-go="support" id="nav-support">Support<span class="badge" id="nav-badge" hidden></span></a>
+      <a href="https://linktr.ee/MPSKings" target="_blank" rel="noopener noreferrer" id="nav-links">Links
+        <svg class="i xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>
+      </a>
+    </nav>
+    <div class="me" id="me">
+      <button class="btn small ghost" id="btn-staff" type="button" hidden>Staff</button>
+      <div class="me-user" id="me-user" hidden>
+        <img id="me-img" alt="" width="32" height="32" referrerpolicy="no-referrer">
+        <span class="nm" id="me-name"></span>
+        <span class="tag" id="me-tag" hidden>Equipe</span>
+        <button class="linkbtn" id="btn-logout" type="button">Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="view-login" class="login" hidden>
+      <div class="login-card">
+        <img class="login-logo" src="/logo.png" alt="MPS Kings" width="396" height="194">
+        <div id="step-terms" class="step">
+          <h1>Termos de uso</h1>
+          <p class="terms">Para o uso de alguns serviços, precisaremos de algumas informações suas, como nome de usuário (username) ou e-mail, para uma experiência melhor.</p>
+          <p class="phint">Ao conectar com o Discord, você concorda com os termos de uso.</p>
+          <button class="btn primary big" id="btn-agree" type="button">Conectar com Discord</button>
+        </div>
+        <button class="btn small ghost staff-entry" id="btn-staff-entry" type="button">Staff</button>
+      </div>
+    </section>
+
+    <section id="view-home">
+      <div class="hero">
+        <div class="hero-body">
+          <img class="hero-avatar" id="hero-avatar" alt="" width="96" height="96" referrerpolicy="no-referrer" hidden>
+          <div class="hero-copy">
+            <p class="eyebrow" id="hero-eyebrow">Bem-vindo</p>
+            <h1 class="hero-name" id="hero-name">Visitante</h1>
+          </div>
+        </div>
+      </div>
+      <div class="cards">
+        <a class="card" href="#support" data-go="support">
+          <span class="ico"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4h0A2.5 2.5 0 0 1 4 13.5z"/></svg></span>
+          <h2>Support</h2>
+          <span class="lvl" id="home-sup-title">Tickets</span>
+          <p id="home-sup-sub">Abra um ticket e converse com a equipe.</p>
+        </a>
+        <a class="card" href="https://linktr.ee/MPSKings" target="_blank" rel="noopener noreferrer">
+          <span class="ico"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span>
+          <svg class="i go" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>
+          <h2>Links</h2>
+          <span class="lvl">Linktree</span>
+          <p>linktr.ee/MPSKings</p>
+        </a>
+      </div>
+    </section>
+
+    <section id="view-profile" hidden>
+      <h1 class="sr">My Profile</h1>
+      <div id="profile-box"></div>
+    </section>
+
+    <section id="view-support" hidden>
+      <div class="sup-head">
+        <div>
+          <h1>Support</h1>
+          <p id="sup-sub">Suas conversas com a equipe.</p>
+        </div>
+        <button class="btn primary" id="btn-new" type="button" hidden>
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Novo ticket
+        </button>
+      </div>
+      <div class="sup-grid" id="grid">
+        <aside class="pane list-pane" id="list-pane">
+          <div class="tabs" role="group" aria-label="Filtro">
+            <button class="tab" type="button" data-f="open" aria-pressed="true">Abertos<span class="ct" id="ct-open">0</span></button>
+            <button class="tab" type="button" data-f="closed" aria-pressed="false">Fechados<span class="ct" id="ct-closed">0</span></button>
+          </div>
+          <ul class="list" id="list"></ul>
+        </aside>
+        <div class="pane thread-pane" id="thread-pane">
+          <div class="empty" id="pane-empty"></div>
+
+          <form class="newform" id="pane-new" hidden>
+            <button class="btn small back" id="new-back" type="button">
+              <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Voltar
+            </button>
+            <h2>Novo ticket</h2>
+            <p>Conte o que aconteceu. A equipe responde aqui mesmo, como numa conversa. Seus nicks do Roblox e do Discord vão junto automaticamente.</p>
+            <div class="field">
+              <label for="new-subject">Assunto</label>
+              <input id="new-subject" maxlength="80" placeholder="Ex.: Preciso de ajuda com minha inscrição" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="new-text">Mensagem</label>
+              <textarea id="new-text" rows="6" maxlength="2000" placeholder="Escreva sua mensagem"></textarea>
+            </div>
+            <div class="actions">
+              <button class="btn primary" id="new-send" type="submit">Abrir ticket</button>
+              <button class="btn" id="new-cancel" type="button">Cancelar</button>
+            </div>
+          </form>
+
+          <div class="thread" id="pane-thread" hidden>
+            <div class="th-head">
+              <button class="btn small back" id="th-back" type="button" aria-label="Voltar para a lista">
+                <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+              </button>
+              <div class="th-title"><h2 id="th-subject"></h2><div class="sub" id="th-sub"></div><div class="sub ids" id="th-ids" hidden></div></div>
+              <span class="pill" id="th-pill"></span>
+              <button class="btn small" id="th-toggle" type="button"></button>
+            </div>
+            <div class="msgs" id="msgs" role="log" aria-live="polite"></div>
+            <div class="closed-note" id="closed-note" hidden>Ticket fechado. Enviar uma mensagem reabre a conversa.</div>
+            <form class="composer" id="composer">
+              <label class="sr" for="msg-input">Mensagem</label>
+              <textarea id="msg-input" rows="1" maxlength="2000" placeholder="Escreva uma mensagem"></textarea>
+              <button class="btn primary" id="msg-send" type="submit" aria-label="Enviar">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l14-7-5 14-2.5-5.5z"/></svg>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<dialog class="dlg" id="staff-dialog" aria-labelledby="staff-title">
+  <form id="staff-form" novalidate>
+    <h2 id="staff-title">Área da equipe</h2>
+    <p>Digite a senha para entrar como equipe.</p>
+    <div class="field">
+      <label for="staff-pass">Senha</label>
+      <input id="staff-pass" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <p class="phint err" id="staff-err" role="alert"></p>
+    <div class="actions">
+      <button class="btn primary" id="staff-send" type="submit">Entrar</button>
+      <button class="btn" id="staff-cancel" type="button">Cancelar</button>
+    </div>
+  </form>
+</dialog>
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="/app.js"></script>
+</body>
+</html>
